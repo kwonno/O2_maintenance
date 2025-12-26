@@ -60,6 +60,34 @@ export async function POST(request: NextRequest) {
       errors: [] as string[],
     }
 
+    // CSV 파일 내 중복 시리얼 검증 (사전 검증)
+    const serialsInFile = new Map<string, number[]>() // serial -> row numbers
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+      
+      try {
+        const values = parseCSVLine(line)
+        const serial = values[headerMap['시리얼번호']]?.trim()
+        if (serial) {
+          if (!serialsInFile.has(serial)) {
+            serialsInFile.set(serial, [])
+          }
+          serialsInFile.get(serial)!.push(i + 1)
+        }
+      } catch {
+        // 파싱 에러는 나중에 처리
+      }
+    }
+
+    // CSV 파일 내 중복 체크
+    for (const [serial, rows] of serialsInFile.entries()) {
+      if (rows.length > 1) {
+        results.failed++
+        results.errors.push(`CSV 파일 내 시리얼 번호 중복: "${serial}" (행: ${rows.join(', ')})`)
+      }
+    }
+
     // 데이터 행 처리
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
@@ -78,20 +106,99 @@ export async function POST(request: NextRequest) {
         const orderNumber = values[headerMap['발주번호']]?.trim()
         const remarks = values[headerMap['비고']]?.trim()
 
+        // 필수 필드 검증
         if (!customerName || !vendor || !model || !serial || !contractStart || !contractEnd) {
           results.failed++
-          results.errors.push(`행 ${i + 1}: 필수 필드가 누락되었습니다.`)
+          results.errors.push(`행 ${i + 1}: 필수 필드가 누락되었습니다. (고객사, 제조사, 모델, 시리얼번호, 계약기간 필수)`)
           continue
         }
 
-        // 1. 고객사 확인 또는 생성
+        // 고객사 이름 검증 (공백, 특수문자 등)
+        if (customerName.length < 1 || customerName.length > 100) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 고객사 이름이 유효하지 않습니다. (1-100자)`)
+          continue
+        }
+
+        // 시리얼 번호 검증
+        if (serial.length < 1 || serial.length > 200) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 시리얼 번호가 유효하지 않습니다. (1-200자)`)
+          continue
+        }
+
+        // 날짜 형식 검증 (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+        if (!dateRegex.test(contractStart)) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 계약기간(시작) 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식 필요)`)
+          continue
+        }
+        if (!dateRegex.test(contractEnd)) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 계약기간(종료) 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식 필요)`)
+          continue
+        }
+        if (eol && !dateRegex.test(eol)) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: EOL 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식 필요)`)
+          continue
+        }
+
+        // 날짜 유효성 검증
+        const startDate = new Date(contractStart)
+        const endDate = new Date(contractEnd)
+        if (isNaN(startDate.getTime())) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 계약기간(시작) 날짜가 유효하지 않습니다.`)
+          continue
+        }
+        if (isNaN(endDate.getTime())) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 계약기간(종료) 날짜가 유효하지 않습니다.`)
+          continue
+        }
+        if (startDate > endDate) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 계약기간(시작)이 계약기간(종료)보다 늦습니다.`)
+          continue
+        }
+        if (eol) {
+          const eolDate = new Date(eol)
+          if (isNaN(eolDate.getTime())) {
+            results.failed++
+            results.errors.push(`행 ${i + 1}: EOL 날짜가 유효하지 않습니다.`)
+            continue
+          }
+        }
+
+        // 1. 고객사 확인 (정확한 매칭 - 대소문자 구분, 공백 제거 후 비교)
+        // 먼저 정확한 이름으로 검색
         let { data: tenant } = await supabase
           .from('tenants')
-          .select('id')
+          .select('id, name')
           .eq('name', customerName)
           .single()
 
+        // 정확한 매칭이 없으면 유사한 이름 검색 (대소문자 무시)
         if (!tenant) {
+          const { data: allTenants } = await supabase
+            .from('tenants')
+            .select('id, name')
+          
+          const normalizedCustomerName = customerName.toLowerCase().trim()
+          const similarTenant = allTenants?.find(t => 
+            t.name.toLowerCase().trim() === normalizedCustomerName
+          )
+
+          if (similarTenant) {
+            results.failed++
+            results.errors.push(`행 ${i + 1}: 고객사 이름이 일치하지 않습니다. 등록된 고객사: "${similarTenant.name}", 입력된 값: "${customerName}" (대소문자 또는 공백 차이)`)
+            continue
+          }
+
+          // 유사한 이름도 없으면 새로 생성 (사용자 확인 필요)
+          // 주의: 자동 생성은 위험할 수 있으므로 경고 메시지 추가
           const { data: newTenant, error: tenantError } = await supabase
             .from('tenants')
             .insert({ name: customerName })
@@ -100,10 +207,11 @@ export async function POST(request: NextRequest) {
 
           if (tenantError || !newTenant) {
             results.failed++
-            results.errors.push(`행 ${i + 1}: 고객사 생성 실패 - ${tenantError?.message}`)
+            results.errors.push(`행 ${i + 1}: 고객사 생성 실패 - ${tenantError?.message || '알 수 없는 오류'}`)
             continue
           }
           tenant = newTenant
+          results.errors.push(`행 ${i + 1}: 새로운 고객사가 생성되었습니다: "${customerName}" (확인 필요)`)
         }
 
         if (!tenant || !tenant.id) {
@@ -158,6 +266,33 @@ export async function POST(request: NextRequest) {
         if (modelId) assetData.model_id = modelId
         if (eol) assetData.eol_date = eol
 
+        // 시리얼 번호 중복 검증 (같은 고객사 내에서)
+        const { data: existingAsset } = await supabase
+          .from('assets')
+          .select('id, serial, tenant_id')
+          .eq('serial', serial)
+          .eq('tenant_id', tenant.id)
+          .single()
+
+        if (existingAsset) {
+          results.failed++
+          results.errors.push(`행 ${i + 1}: 시리얼 번호 중복 - "${serial}" (고객사: ${customerName})`)
+          continue
+        }
+
+        // 전역 시리얼 중복 검증 (다른 고객사에 같은 시리얼이 있는지 확인)
+        const { data: globalExistingAsset } = await supabase
+          .from('assets')
+          .select('id, serial, tenant:tenants(name)')
+          .eq('serial', serial)
+          .limit(1)
+
+        if (globalExistingAsset && globalExistingAsset.length > 0) {
+          const existingTenantName = (globalExistingAsset[0] as any).tenant?.name || '알 수 없음'
+          // 경고만 표시하고 계속 진행 (같은 고객사가 아니면 허용)
+          results.errors.push(`행 ${i + 1}: 경고 - 시리얼 번호 "${serial}"가 다른 고객사("${existingTenantName}")에 이미 존재합니다.`)
+        }
+
         const { data: asset, error: assetError } = await supabase
           .from('assets')
           .insert(assetData)
@@ -166,7 +301,7 @@ export async function POST(request: NextRequest) {
 
         if (assetError || !asset) {
           results.failed++
-          results.errors.push(`행 ${i + 1}: 자산 생성 실패 - ${assetError?.message}`)
+          results.errors.push(`행 ${i + 1}: 자산 생성 실패 - ${assetError?.message || '알 수 없는 오류'}`)
           continue
         }
 
