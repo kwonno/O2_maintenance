@@ -56,77 +56,104 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 파일 업로드
-    if (file) {
-      const reportId = crypto.randomUUID()
+    // 파일이 필수입니다
+    if (!file) {
+      return NextResponse.json(
+        { error: '보고서 파일이 필요합니다.' },
+        { status: 400 }
+      )
+    }
+
+    const reportId = crypto.randomUUID()
+    
+    // 파일 확장자 확인
+    const fileName = file.name.toLowerCase()
+    let fileExtension = 'pdf'
+    let contentType: string | undefined = 'application/pdf'
+    
+    if (fileName.endsWith('.xlsx')) {
+      fileExtension = 'xlsx'
+      // Supabase Storage 버킷 설정에 따라 contentType을 제거하거나 일반 타입 사용
+      contentType = undefined // contentType 제거하여 Supabase가 자동 감지하도록
+    } else if (fileName.endsWith('.xls')) {
+      fileExtension = 'xls'
+      contentType = undefined // contentType 제거하여 Supabase가 자동 감지하도록
+    }
+    
+    const filePath = `tenant/${tenant_id}/inspections/${yyyy_mm}/${reportId}.${fileExtension}`
+    
+    // 파일을 Blob으로 변환
+    const fileBuffer = await file.arrayBuffer()
+    
+    // 업로드 옵션
+    const uploadOptions: any = {
+      cacheControl: '3600',
+      upsert: false,
+    }
+    
+    // PDF만 contentType 명시적으로 설정, 엑셀은 제거
+    if (contentType) {
+      uploadOptions.contentType = contentType
+    }
+    
+    // 파일 업로드 (실패 시 보고서 레코드 생성하지 않음)
+    const { error: uploadError } = await supabase.storage
+      .from('reports')
+      .upload(filePath, fileBuffer, uploadOptions)
+
+    if (uploadError) {
+      // 파일 업로드 실패 시 점검 레코드도 삭제
+      await supabase
+        .from('inspections')
+        .delete()
+        .eq('id', inspection.id)
       
-      // 파일 확장자 확인
-      const fileName = file.name.toLowerCase()
-      let fileExtension = 'pdf'
-      let contentType: string | undefined = 'application/pdf'
-      
-      if (fileName.endsWith('.xlsx')) {
-        fileExtension = 'xlsx'
-        // Supabase Storage가 허용하는 MIME type 사용
-        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      } else if (fileName.endsWith('.xls')) {
-        fileExtension = 'xls'
-        contentType = 'application/vnd.ms-excel'
+      return NextResponse.json(
+        { error: `파일 업로드에 실패했습니다: ${uploadError.message}. Supabase Storage 버킷 설정에서 엑셀 파일 MIME type을 허용하거나, "Allowed MIME types"를 비워두세요.` },
+        { status: 500 }
+      )
+    }
+
+    // 서명 위치 설정
+    let signaturePosition = null
+    if (signaturePositionX && signaturePositionY && signaturePositionPage) {
+      signaturePosition = {
+        x: parseInt(signaturePositionX) || 0,
+        y: parseInt(signaturePositionY) || 0,
+        page: parseInt(signaturePositionPage) || 1,
       }
-      
-      const filePath = `tenant/${tenant_id}/inspections/${yyyy_mm}/${reportId}.${fileExtension}`
-      
-      // 파일을 Blob으로 변환
-      const fileBuffer = await file.arrayBuffer()
-      
-      // 업로드 옵션 - 모든 파일에 대해 명시적으로 contentType 설정
-      const uploadOptions: any = {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: contentType,
-      }
-      
-      const { error: uploadError } = await supabase.storage
+    }
+
+    // 보고서 레코드 생성
+    const { error: reportError } = await supabase
+      .from('inspection_reports')
+      .insert({
+        tenant_id,
+        inspection_id: inspection.id,
+        file_path: filePath,
+        title: title,
+        summary: summary || null,
+        file_type: fileExtension,
+        signature_status: 'pending',
+        signature_position: signaturePosition,
+      })
+
+    if (reportError) {
+      // 보고서 레코드 생성 실패 시 업로드한 파일도 삭제
+      await supabase.storage
         .from('reports')
-        .upload(filePath, fileBuffer, uploadOptions)
-
-      if (uploadError) {
-        return NextResponse.json(
-          { error: uploadError.message || '파일 업로드에 실패했습니다.' },
-          { status: 500 }
-        )
-      }
-
-      // 서명 위치 설정
-      let signaturePosition = null
-      if (signaturePositionX && signaturePositionY && signaturePositionPage) {
-        signaturePosition = {
-          x: parseInt(signaturePositionX) || 0,
-          y: parseInt(signaturePositionY) || 0,
-          page: parseInt(signaturePositionPage) || 1,
-        }
-      }
-
-      // 보고서 레코드 생성
-      const { error: reportError } = await supabase
-        .from('inspection_reports')
-        .insert({
-          tenant_id,
-          inspection_id: inspection.id,
-          file_path: filePath,
-          title: title,
-          summary: summary || null,
-          file_type: fileExtension,
-          signature_status: 'pending',
-          signature_position: signaturePosition,
-        })
-
-      if (reportError) {
-        return NextResponse.json(
-          { error: reportError.message || '보고서 생성에 실패했습니다.' },
-          { status: 500 }
-        )
-      }
+        .remove([filePath])
+      
+      // 점검 레코드도 삭제
+      await supabase
+        .from('inspections')
+        .delete()
+        .eq('id', inspection.id)
+      
+      return NextResponse.json(
+        { error: reportError.message || '보고서 생성에 실패했습니다.' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ success: true, inspection })

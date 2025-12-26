@@ -34,7 +34,7 @@ export async function DELETE(
       )
     }
 
-    // Storage에서 파일 삭제
+    // Storage에서 파일 삭제 (파일이 있는 경우만)
     if (report.file_path) {
       const { error: fileDeleteError } = await supabase.storage
         .from('reports')
@@ -42,8 +42,11 @@ export async function DELETE(
 
       if (fileDeleteError) {
         console.error('파일 삭제 실패:', fileDeleteError)
-        // 파일 삭제 실패해도 DB 레코드는 삭제 진행
+        // 파일이 없거나 이미 삭제된 경우도 있을 수 있으므로 계속 진행
       }
+    } else {
+      // file_path가 없는 경우 (파일 없이 생성된 보고서)
+      console.warn('보고서에 파일 경로가 없습니다. DB 레코드만 삭제합니다.')
     }
 
     // 서명 파일도 삭제
