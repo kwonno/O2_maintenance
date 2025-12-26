@@ -63,27 +63,36 @@ export async function POST(request: NextRequest) {
       // 파일 확장자 확인
       const fileName = file.name.toLowerCase()
       let fileExtension = 'pdf'
-      let contentType = 'application/pdf'
+      let contentType: string | undefined = 'application/pdf'
       
       if (fileName.endsWith('.xlsx')) {
         fileExtension = 'xlsx'
-        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        // Supabase Storage가 특정 MIME type을 지원하지 않을 수 있으므로 더 일반적인 타입 사용
+        contentType = 'application/octet-stream'
       } else if (fileName.endsWith('.xls')) {
         fileExtension = 'xls'
-        contentType = 'application/vnd.ms-excel'
+        contentType = 'application/octet-stream'
       }
       
       const filePath = `tenant/${tenant_id}/inspections/${yyyy_mm}/${reportId}.${fileExtension}`
       
       // 파일을 Blob으로 변환
       const fileBuffer = await file.arrayBuffer()
+      
+      // 업로드 옵션 (contentType이 있으면 포함, 없으면 제외)
+      const uploadOptions: any = {
+        cacheControl: '3600',
+        upsert: false,
+      }
+      
+      // PDF는 명시적으로 contentType 설정, 엑셀은 제외 (Supabase가 자동 감지)
+      if (fileExtension === 'pdf') {
+        uploadOptions.contentType = contentType
+      }
+      
       const { error: uploadError } = await supabase.storage
         .from('reports')
-        .upload(filePath, fileBuffer, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: contentType,
-        })
+        .upload(filePath, fileBuffer, uploadOptions)
 
       if (uploadError) {
         return NextResponse.json(

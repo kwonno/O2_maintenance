@@ -1,9 +1,71 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import SignatureModal from './signature-modal'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+
+// PDF 서명 오버레이 컴포넌트
+function PdfSignatureOverlay({ 
+  signatureData, 
+  position, 
+  iframeId 
+}: { 
+  signatureData: string
+  position: { x: number; y: number; page: number }
+  iframeId: string
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const [iframeRect, setIframeRect] = useState<DOMRect | null>(null)
+
+  useEffect(() => {
+    const updatePosition = () => {
+      const iframe = document.getElementById(iframeId) as HTMLIFrameElement
+      if (iframe && overlayRef.current) {
+        const rect = iframe.getBoundingClientRect()
+        setIframeRect(rect)
+      }
+    }
+
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+
+    // iframe 로드 후 위치 업데이트
+    const iframe = document.getElementById(iframeId) as HTMLIFrameElement
+    if (iframe) {
+      iframe.addEventListener('load', updatePosition)
+    }
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+      if (iframe) {
+        iframe.removeEventListener('load', updatePosition)
+      }
+    }
+  }, [iframeId])
+
+  if (!iframeRect) return null
+
+  return (
+    <div
+      ref={overlayRef}
+      className="absolute pointer-events-none z-10"
+      style={{
+        left: `${iframeRect.left + position.x}px`,
+        top: `${iframeRect.top + position.y}px`,
+        transform: 'translate(-50%, -50%)',
+      }}
+    >
+      <img 
+        src={signatureData} 
+        alt="서명" 
+        className="max-w-[150px] h-auto border-2 border-red-500 rounded shadow-lg bg-white p-1"
+      />
+    </div>
+  )
+}
 
 interface ReportDetailClientProps {
   report: any
@@ -145,27 +207,19 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
                 </a>
               </div>
               {report.file_type === 'pdf' ? (
-                <div className="mt-4 relative">
+                <div className="mt-4 relative" style={{ height: '800px', overflow: 'auto' }}>
                   <iframe
-                    src={signedUrl}
-                    className="w-full h-screen border border-gray-300 rounded"
+                    src={`${signedUrl}#page=${report.signature_position?.page || 1}`}
+                    className="w-full h-full border border-gray-300 rounded"
                     title="보고서 PDF"
+                    id="pdf-iframe"
                   />
                   {signatureData && report.signature_position && (
-                    <div
-                      className="absolute pointer-events-none z-10"
-                      style={{
-                        left: `${report.signature_position.x}px`,
-                        top: `${report.signature_position.y}px`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                    >
-                      <img 
-                        src={signatureData} 
-                        alt="서명" 
-                        className="max-w-[150px] h-auto border-2 border-red-500 rounded shadow-lg bg-white p-1"
-                      />
-                    </div>
+                    <PdfSignatureOverlay
+                      signatureData={signatureData}
+                      position={report.signature_position}
+                      iframeId="pdf-iframe"
+                    />
                   )}
                 </div>
               ) : (
