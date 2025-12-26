@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
     const inspection_date = formData.get('inspection_date') as string
     const summary = formData.get('summary') as string
     const file = formData.get('file') as File | null
+    const signaturePositionX = formData.get('signature_position_x') as string
+    const signaturePositionY = formData.get('signature_position_y') as string
+    const signaturePositionPage = formData.get('signature_position_page') as string
 
     if (!tenant_id || !yyyy_mm || !inspection_date) {
       return NextResponse.json(
@@ -85,6 +88,16 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // 서명 위치 설정
+      let signaturePosition = null
+      if (signaturePositionX && signaturePositionY && signaturePositionPage) {
+        signaturePosition = {
+          x: parseInt(signaturePositionX) || 0,
+          y: parseInt(signaturePositionY) || 0,
+          page: parseInt(signaturePositionPage) || 1,
+        }
+      }
+
       // 보고서 레코드 생성
       const { error: reportError } = await supabase
         .from('inspection_reports')
@@ -95,6 +108,7 @@ export async function POST(request: NextRequest) {
           summary: summary || null,
           file_type: fileExtension,
           signature_status: 'pending',
+          signature_position: signaturePosition,
         })
 
       if (reportError) {

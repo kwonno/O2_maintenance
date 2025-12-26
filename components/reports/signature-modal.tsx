@@ -5,17 +5,18 @@ import { useState, useRef, useEffect } from 'react'
 interface SignatureModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (signatureData: string, signatureType: 'draw' | 'upload') => void
+  onSave: (signatureData: string, signatureType: 'draw' | 'upload', position: { x: number; y: number; page: number }) => void
   reportId: string
+  defaultPosition?: { x: number; y: number; page: number }
 }
 
-export default function SignatureModal({ isOpen, onClose, onSave, reportId }: SignatureModalProps) {
+export default function SignatureModal({ isOpen, onClose, onSave, reportId, defaultPosition }: SignatureModalProps) {
   const [signatureType, setSignatureType] = useState<'draw' | 'upload'>('draw')
   const [signatureData, setSignatureData] = useState<string>('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0, page: 1 })
+  const [position, setPosition] = useState(defaultPosition || { x: 0, y: 0, page: 1 })
 
   useEffect(() => {
     if (isOpen && signatureType === 'draw' && canvasRef.current) {
@@ -113,7 +114,7 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId }: Si
       return
     }
 
-    await onSave(signatureData, signatureType)
+    await onSave(signatureData, signatureType, position)
   }
 
   if (!isOpen) return null
