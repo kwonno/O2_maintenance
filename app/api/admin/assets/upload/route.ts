@@ -60,6 +60,9 @@ export async function POST(request: NextRequest) {
       errors: [] as string[],
     }
 
+    // 발주번호별로 그룹화할 맵 (tenant_id + order_number + contractStart + contractEnd -> contract)
+    const contractMap = new Map<string, { contractId: string; tenantId: string; orderNumber: string; contractStart: string; contractEnd: string }>()
+
     // CSV 파일 내 중복 시리얼 검증 (사전 검증)
     const serialsInFile = new Map<string, number[]>() // serial -> row numbers
     for (let i = 1; i < lines.length; i++) {
@@ -305,38 +308,83 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // 4. 계약 생성
-        const contractName = `${customerName} - ${vendor} ${model} (${serial})`
-        const { data: contract, error: contractError } = await supabase
-          .from('contracts')
-          .insert({
-            tenant_id: tenant.id,
-            name: contractName,
-            start_date: contractStart,
-            end_date: contractEnd,
-          })
-          .select()
-          .single()
+        // 4. 계약 처리 (발주번호별로 그룹화)
+        let contractId: string | null = null
+        
+        if (orderNumber) {
+          // 발주번호가 있으면 같은 발주번호의 계약 찾기 또는 생성
+          const contractKey = `${tenant.id}_${orderNumber}_${contractStart}_${contractEnd}`
+          
+          if (contractMap.has(contractKey)) {
+            // 이미 같은 발주번호의 계약이 있으면 재사용
+            contractId = contractMap.get(contractKey)!.contractId
+          } else {
+            // 새 계약 생성 (발주번호 기반)
+            const contractName = orderNumber ? `${customerName} - 발주번호: ${orderNumber}` : `${customerName} - ${vendor} ${model} (${serial})`
+            const { data: contract, error: contractError } = await supabase
+              .from('contracts')
+              .insert({
+                tenant_id: tenant.id,
+                name: contractName,
+                start_date: contractStart,
+                end_date: contractEnd,
+              })
+              .select()
+              .single()
 
-        if (contractError || !contract) {
-          results.failed++
-          results.errors.push(`행 ${i + 1}: 계약 생성 실패 - ${contractError?.message}`)
-          continue
+            if (contractError || !contract) {
+              results.failed++
+              results.errors.push(`행 ${i + 1}: 계약 생성 실패 - ${contractError?.message || '알 수 없는 오류'}`)
+              continue
+            }
+            
+            contractId = contract.id
+            contractMap.set(contractKey, {
+              contractId: contract.id,
+              tenantId: tenant.id,
+              orderNumber: orderNumber,
+              contractStart: contractStart,
+              contractEnd: contractEnd,
+            })
+          }
+        } else {
+          // 발주번호가 없으면 자산별로 개별 계약 생성
+          const contractName = `${customerName} - ${vendor} ${model} (${serial})`
+          const { data: contract, error: contractError } = await supabase
+            .from('contracts')
+            .insert({
+              tenant_id: tenant.id,
+              name: contractName,
+              start_date: contractStart,
+              end_date: contractEnd,
+            })
+            .select()
+            .single()
+
+          if (contractError || !contract) {
+            results.failed++
+            results.errors.push(`행 ${i + 1}: 계약 생성 실패 - ${contractError?.message || '알 수 없는 오류'}`)
+            continue
+          }
+          
+          contractId = contract.id
         }
 
         // 5. 계약 항목 생성 (자산과 계약 연결)
-        const { error: contractItemError } = await supabase
-          .from('contract_items')
-          .insert({
-            tenant_id: tenant.id,
-            contract_id: contract.id,
-            asset_id: asset.id,
-          })
+        if (contractId) {
+          const { error: contractItemError } = await supabase
+            .from('contract_items')
+            .insert({
+              tenant_id: tenant.id,
+              contract_id: contractId,
+              asset_id: asset.id,
+            })
 
-        if (contractItemError) {
-          results.failed++
-          results.errors.push(`행 ${i + 1}: 계약 항목 생성 실패 - ${contractItemError.message}`)
-          continue
+          if (contractItemError) {
+            results.failed++
+            results.errors.push(`행 ${i + 1}: 계약 항목 생성 실패 - ${contractItemError.message}`)
+            continue
+          }
         }
 
         results.success++
