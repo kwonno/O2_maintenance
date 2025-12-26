@@ -18,7 +18,11 @@ Supabase 대시보드에서 SQL Editor를 열고 다음 순서로 실행:
    - **Bucket name**: `reports`
    - **Public bucket**: **체크 해제** (비공개)
    - **File size limit**: 10MB (또는 적절한 값)
-   - **Allowed MIME types**: `application/pdf` (선택사항)
+   - **Allowed MIME types**: 
+     - `application/pdf`
+     - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (엑셀 .xlsx)
+     - `application/vnd.ms-excel` (엑셀 .xls)
+     - 또는 **비워두기** (모든 파일 타입 허용)
 4. "Create bucket" 클릭
 
 ## 3. Storage 정책 설정 (선택사항)
