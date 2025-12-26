@@ -86,22 +86,30 @@ BEGIN
 END $$;
 
 -- 2. 통합 후 남은 개별 계약들도 발주번호 기반으로 이름 변경 (선택사항)
-UPDATE contracts c
-SET name = t.name || ' - 발주번호: ' || a.order_number
-FROM contract_items ci
-INNER JOIN assets a ON a.id = ci.asset_id
-INNER JOIN tenants t ON t.id = c.tenant_id
-WHERE c.id = ci.contract_id
-  AND a.order_number IS NOT NULL
-  AND a.order_number != ''
-  AND c.name NOT LIKE '%발주번호:%'
-  AND (
-      -- 같은 계약에 속한 모든 자산이 같은 발주번호를 가지는 경우
-      SELECT COUNT(DISTINCT a2.order_number)
-      FROM contract_items ci2
-      INNER JOIN assets a2 ON a2.id = ci2.asset_id
-      WHERE ci2.contract_id = c.id
-        AND a2.order_number IS NOT NULL
-        AND a2.order_number != ''
-  ) = 1;
+UPDATE contracts
+SET name = subquery.tenant_name || ' - 발주번호: ' || subquery.order_number
+FROM (
+    SELECT 
+        c.id as contract_id,
+        t.name as tenant_name,
+        a.order_number
+    FROM contracts c
+    INNER JOIN contract_items ci ON ci.contract_id = c.id
+    INNER JOIN assets a ON a.id = ci.asset_id
+    INNER JOIN tenants t ON t.id = c.tenant_id
+    WHERE a.order_number IS NOT NULL
+      AND a.order_number != ''
+      AND c.name NOT LIKE '%발주번호:%'
+      AND (
+          -- 같은 계약에 속한 모든 자산이 같은 발주번호를 가지는 경우
+          SELECT COUNT(DISTINCT a2.order_number)
+          FROM contract_items ci2
+          INNER JOIN assets a2 ON a2.id = ci2.asset_id
+          WHERE ci2.contract_id = c.id
+            AND a2.order_number IS NOT NULL
+            AND a2.order_number != ''
+      ) = 1
+    GROUP BY c.id, t.name, a.order_number
+) AS subquery
+WHERE contracts.id = subquery.contract_id;
 
