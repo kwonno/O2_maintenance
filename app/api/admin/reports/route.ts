@@ -69,15 +69,15 @@ export async function POST(request: NextRequest) {
     // 파일 확장자 확인
     const fileName = file.name.toLowerCase()
     let fileExtension = 'pdf'
-    let contentType: string | undefined = 'application/pdf'
+    let contentType: string = 'application/pdf'
     
     if (fileName.endsWith('.xlsx')) {
       fileExtension = 'xlsx'
-      // Supabase Storage 버킷 설정에 따라 contentType을 제거하거나 일반 타입 사용
-      contentType = undefined // contentType 제거하여 Supabase가 자동 감지하도록
+      // Supabase Storage 버킷에 허용된 MIME type 사용
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     } else if (fileName.endsWith('.xls')) {
       fileExtension = 'xls'
-      contentType = undefined // contentType 제거하여 Supabase가 자동 감지하도록
+      contentType = 'application/vnd.ms-excel'
     }
     
     const filePath = `tenant/${tenant_id}/inspections/${yyyy_mm}/${reportId}.${fileExtension}`
@@ -85,15 +85,11 @@ export async function POST(request: NextRequest) {
     // 파일을 Blob으로 변환
     const fileBuffer = await file.arrayBuffer()
     
-    // 업로드 옵션
+    // 업로드 옵션 - 모든 파일에 대해 명시적으로 contentType 설정
     const uploadOptions: any = {
       cacheControl: '3600',
       upsert: false,
-    }
-    
-    // PDF만 contentType 명시적으로 설정, 엑셀은 제거
-    if (contentType) {
-      uploadOptions.contentType = contentType
+      contentType: contentType,
     }
     
     // 파일 업로드 (실패 시 보고서 레코드 생성하지 않음)
@@ -109,7 +105,7 @@ export async function POST(request: NextRequest) {
         .eq('id', inspection.id)
       
       return NextResponse.json(
-        { error: `파일 업로드에 실패했습니다: ${uploadError.message}. Supabase Storage 버킷 설정에서 엑셀 파일 MIME type을 허용하거나, "Allowed MIME types"를 비워두세요.` },
+        { error: `파일 업로드에 실패했습니다: ${uploadError.message}. 파일 타입: ${contentType}. Supabase Storage 버킷의 "Allowed MIME types"에 "${contentType}"이 포함되어 있는지 확인하세요.` },
         { status: 500 }
       )
     }
