@@ -30,13 +30,12 @@ export default async function AssetDetailPage({
     .from('assets')
     .select('*')
     .eq('id', params.id)
-    .single()
 
   if (!isOperatorAdmin) {
     query = query.eq('tenant_id', tenantId)
   }
 
-  const { data: asset, error } = await query
+  const { data: asset, error } = await query.single()
 
   if (error || !asset) {
     notFound()

@@ -30,13 +30,12 @@ export default async function ContractDetailPage({
     .from('contracts')
     .select('*')
     .eq('id', params.id)
-    .single()
 
   if (!isOperatorAdmin) {
     query = query.eq('tenant_id', tenantId)
   }
 
-  const { data: contract, error } = await query
+  const { data: contract, error } = await query.single()
 
   if (error || !contract) {
     notFound()

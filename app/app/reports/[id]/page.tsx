@@ -34,13 +34,12 @@ export default async function ReportDetailPage({
       inspection:inspections(*)
     `)
     .eq('id', params.id)
-    .single()
 
   if (!isOperatorAdmin) {
     query = query.eq('tenant_id', tenantId)
   }
 
-  const { data: report, error } = await query
+  const { data: report, error } = await query.single()
 
   if (error || !report) {
     notFound()

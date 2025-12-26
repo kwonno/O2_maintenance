@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { uploadReport } from '@/lib/supabase/storage'
 
 interface Tenant {
   id: string
@@ -46,13 +45,16 @@ export default function ReportForm({ tenants }: { tenants: Tenant[] }) {
       // 파일 업로드
       if (file) {
         const reportId = crypto.randomUUID()
-        const filePath = await uploadReport(
-          formData.tenant_id,
-          formData.yyyy_mm,
-          reportId,
-          file,
-          true // 클라이언트에서 실행
-        )
+        const filePath = `tenant/${formData.tenant_id}/inspections/${formData.yyyy_mm}/${reportId}.pdf`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('reports')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (uploadError) throw uploadError
 
         // 보고서 레코드 생성
         const { error: reportError } = await supabase
