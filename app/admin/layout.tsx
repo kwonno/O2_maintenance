@@ -1,6 +1,7 @@
 import { getCurrentUser, isOperatorAdmin } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import AdminNav from '@/components/admin/nav'
+import AdminSidebar from '@/components/admin/sidebar'
+import AdminHeader from '@/components/admin/header'
 
 // 동적 렌더링 강제 (쿠키 사용)
 export const dynamic = 'force-dynamic'
@@ -25,9 +26,10 @@ export default async function AdminLayout({
     }
 
     return (
-      <div className="min-h-screen bg-gray-50">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[#FCFCFF]">
+        <AdminSidebar />
+        <AdminHeader />
+        <main className="lg:ml-64 mt-16 p-4 lg:p-6">
           {children}
         </main>
       </div>

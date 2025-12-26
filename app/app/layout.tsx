@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import AppNav from '@/components/app/nav'
+import AppSidebar from '@/components/app/sidebar'
+import AppHeader from '@/components/app/header'
 
 // 동적 렌더링 강제 (쿠키 사용)
 export const dynamic = 'force-dynamic'
@@ -18,9 +19,10 @@ export default async function AppLayout({
     }
 
     return (
-      <div className="min-h-screen bg-gray-50">
-        <AppNav />
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[#FCFCFF]">
+        <AppSidebar />
+        <AppHeader />
+        <main className="lg:ml-64 mt-16 p-4 lg:p-6">
           {children}
         </main>
       </div>

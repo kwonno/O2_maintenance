@@ -71,10 +71,10 @@ export default async function DashboardPage() {
   const { data: reports } = await reportsQuery
 
   return (
-    <div className="px-4 py-6 sm:px-0">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">대시보드</h1>
-        <p className="text-gray-600">자산 현황을 한눈에 확인하세요</p>
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[#1A1A4D] mb-1">대시보드</h1>
+        <p className="text-sm text-gray-600">자산 현황을 한눈에 확인하세요</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8">
@@ -124,10 +124,10 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-100 to-purple-100 border-b-2 border-blue-200 px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+        <div className="bg-[#F3F3FB] border-b border-gray-200 px-6 py-4">
+          <h2 className="text-lg font-semibold text-[#1A1A4D] flex items-center">
+            <svg className="w-5 h-5 mr-2 text-[#1A1A4D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             최근 보고서
@@ -137,16 +137,16 @@ export default async function DashboardPage() {
           {reports && reports.length > 0 ? (
             <div className="space-y-4">
               {reports.map((report: any) => (
-                <div key={report.id} className="group p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
+                <div key={report.id} className="group p-4 bg-white border-b border-gray-100 hover:bg-[#F3F3FB] transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center mb-2">
-                        <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="p-2 bg-[#F3F3FB] rounded-lg mr-3">
+                          <svg className="w-4 h-4 text-[#1A1A4D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                         </div>
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-sm font-semibold text-[#1A1A4D]">
                           {report.inspection?.yyyy_mm} 점검 보고서
                         </p>
                       </div>
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
                     </div>
                     <Link
                       href={`/app/reports/${report.id}`}
-                      className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors shadow-sm"
+                      className="ml-4 px-4 py-2 bg-[#1A1A4D] text-white rounded-lg hover:bg-[#0F0C29] text-sm font-medium transition-colors"
                     >
                       보기
                     </Link>
