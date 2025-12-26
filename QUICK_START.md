@@ -16,7 +16,7 @@ Supabase 대시보드 > SQL Editor에서 다음 파일의 내용을 **전체 복
 
 1. 애플리케이션 접속: `/login`
 2. 로그인 정보:
-   - **이메일**: `admin@o2it.com`
+   - **이메일**: `admin@o2pluss.com`
    - **비밀번호**: `admin123`
 
 ## 3단계: 추가 사용자 생성
@@ -39,6 +39,6 @@ Supabase 대시보드 > SQL Editor에서 다음 파일의 내용을 **전체 복
 -- 비밀번호 업데이트
 UPDATE users 
 SET password_hash = '새로운_해시값'
-WHERE email = 'admin@o2it.com';
+WHERE email = 'admin@o2pluss.com';
 ```
 
