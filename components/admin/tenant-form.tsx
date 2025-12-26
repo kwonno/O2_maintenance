@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 // 주의: Supabase Auth를 사용하지 않으므로 고객사만 생성합니다.
@@ -12,7 +11,6 @@ export default function TenantForm() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,13 +18,19 @@ export default function TenantForm() {
     setMessage('')
 
     try {
-      const { data: tenant, error: tenantError } = await supabase
-        .from('tenants')
-        .insert({ name })
-        .select()
-        .single()
+      const response = await fetch('/api/admin/tenants', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      })
 
-      if (tenantError) throw tenantError
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '고객사 생성에 실패했습니다.')
+      }
 
       // 고객사 생성 완료
       // 사용자는 /admin/users에서 별도로 생성하고 고객사에 연결하세요.

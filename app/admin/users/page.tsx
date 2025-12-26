@@ -13,14 +13,14 @@ export default async function AdminUsersPage() {
     redirect('/app')
   }
 
-  const supabase = await createClient()
-  const { data: users } = await supabase
+  // 서비스 역할 키를 사용하여 모든 데이터 조회
+  const supabaseAdmin = createAdminClient()
+  const { data: users } = await supabaseAdmin
     .from('users')
     .select('id, email, name, created_at')
     .order('created_at', { ascending: false })
 
   // 각 사용자의 tenant_users 정보도 조회
-  const supabaseAdmin = createAdminClient()
   const usersWithTenants = await Promise.all(
     (users || []).map(async (u: any) => {
       const { data: tenantUser } = await supabaseAdmin
@@ -36,7 +36,8 @@ export default async function AdminUsersPage() {
     })
   )
 
-  const { data: tenants } = await supabase
+  // tenants 조회도 서비스 역할 키 사용
+  const { data: tenants } = await supabaseAdmin
     .from('tenants')
     .select('id, name')
     .order('name')

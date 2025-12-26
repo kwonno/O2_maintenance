@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { requireAuth, isOperatorAdmin } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { createAdminClient } from '@/lib/supabase/admin'
 import TenantForm from '@/components/admin/tenant-form'
 
 export default async function AdminTenantsPage() {
@@ -11,11 +11,16 @@ export default async function AdminTenantsPage() {
     redirect('/app')
   }
 
-  const supabase = await createClient()
-  const { data: tenants } = await supabase
+  // 서비스 역할 키를 사용하여 RLS 우회
+  const supabase = createAdminClient()
+  const { data: tenants, error } = await supabase
     .from('tenants')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Tenants fetch error:', error)
+  }
 
   return (
     <div className="px-4 py-6 sm:px-0">

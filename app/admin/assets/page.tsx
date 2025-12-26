@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { requireAuth, isOperatorAdmin } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { createAdminClient } from '@/lib/supabase/admin'
 import AssetForm from '@/components/admin/asset-form'
 
 export default async function AdminAssetsPage() {
@@ -11,7 +11,8 @@ export default async function AdminAssetsPage() {
     redirect('/app')
   }
 
-  const supabase = await createClient()
+  // 서비스 역할 키를 사용하여 RLS 우회
+  const supabase = createAdminClient()
   const { data: tenants } = await supabase
     .from('tenants')
     .select('id, name')
