@@ -6,9 +6,9 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// PDF.js worker 설정
+// PDF.js worker 설정 - 더 안정적인 CDN 사용
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 }
 
 // PDF 뷰어 컴포넌트 (PDF.js 사용)
@@ -37,34 +37,52 @@ function PdfViewerWithSignature({
   useEffect(() => {
     const loadPdf = async () => {
       try {
-        const loadingTask = pdfjsLib.getDocument(pdfUrl)
+        // CORS 문제를 피하기 위해 옵션 추가
+        const loadingTask = pdfjsLib.getDocument({
+          url: pdfUrl,
+          withCredentials: false,
+        })
         const pdf = await loadingTask.promise
         setPdfDoc(pdf)
         setTotalPages(pdf.numPages)
         
-        if (position) {
+        if (position && position.page > 0 && position.page <= pdf.numPages) {
           setCurrentPage(position.page)
+        } else {
+          setCurrentPage(1)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('PDF 로드 실패:', error)
+        // 에러 발생 시 사용자에게 알림
+        alert(`PDF를 불러올 수 없습니다: ${error.message || '알 수 없는 오류'}`)
       }
     }
 
-    loadPdf()
+    if (pdfUrl) {
+      loadPdf()
+    }
   }, [pdfUrl, position])
 
   useEffect(() => {
     const renderPage = async () => {
-      if (!pdfDoc || !canvasRef.current) return
+      if (!pdfDoc || !canvasRef.current || currentPage < 1 || currentPage > totalPages) return
 
       try {
         const page = await pdfDoc.getPage(currentPage)
         const canvas = canvasRef.current
         const context = canvas.getContext('2d')
         
+        if (!context) {
+          console.error('Canvas context를 가져올 수 없습니다.')
+          return
+        }
+        
         const viewport = page.getViewport({ scale })
         canvas.height = viewport.height
         canvas.width = viewport.width
+
+        // 캔버스 초기화
+        context.clearRect(0, 0, canvas.width, canvas.height)
 
         const renderContext = {
           canvasContext: context,
@@ -72,13 +90,15 @@ function PdfViewerWithSignature({
         }
 
         await page.render(renderContext).promise
-      } catch (error) {
+      } catch (error: any) {
         console.error('페이지 렌더링 실패:', error)
       }
     }
 
-    renderPage()
-  }, [pdfDoc, currentPage, scale])
+    if (pdfDoc && totalPages > 0) {
+      renderPage()
+    }
+  }, [pdfDoc, currentPage, scale, totalPages])
 
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -132,7 +152,7 @@ function PdfViewerWithSignature({
           <div className="relative">
             <canvas ref={canvasRef} className="shadow-lg" />
             {/* 서명 오버레이 - PDF 좌표에 정확히 맞춤 */}
-            {signatureData && position && position.page === currentPage && (
+            {signatureData && position && position.page === currentPage && canvasRef.current && (
               <div
                 className="absolute pointer-events-none"
                 style={{
@@ -144,8 +164,12 @@ function PdfViewerWithSignature({
                 <img 
                   src={signatureData} 
                   alt="서명" 
-                  className="max-w-[150px] h-auto border-2 border-red-500 rounded shadow-lg bg-white p-1"
-                  style={{ width: `${100 * scale}px` }}
+                  className="border-2 border-red-500 rounded shadow-lg bg-white p-1"
+                  style={{ 
+                    width: `${Math.max(80, 100 * scale)}px`,
+                    height: 'auto',
+                    maxWidth: '200px',
+                  }}
                 />
               </div>
             )}

@@ -9,14 +9,20 @@
 
 1. Supabase 대시보드 > Storage > `reports` 버킷 클릭
 2. Settings 탭으로 이동
-3. "Allowed MIME types" 필드 확인
-4. 다음 중 하나 선택:
-   - **옵션 A**: 필드를 비워두기 (모든 파일 타입 허용) - 가장 간단
-   - **옵션 B**: 다음 MIME types 추가:
-     - `application/pdf`
-     - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (엑셀 .xlsx)
-     - `application/vnd.ms-excel` (엑셀 .xls)
-     - `application/octet-stream` (일반 바이너리)
+3. "Restrict MIME types" 토글이 켜져 있는지 확인
+4. "Allowed MIME types" 필드에 **쉼표(,)로 구분하여** 다음을 입력:
+
+```
+application/pdf, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, application/octet-stream
+```
+
+**중요**: 
+- 각 MIME type을 **쉼표(,)로 구분**하여 입력합니다
+- 공백은 있어도 되지만, 쉼표는 필수입니다
+- 예: `application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+**또는 더 간단한 방법**:
+- "Restrict MIME types" 토글을 **끄기** (모든 파일 타입 허용)
 
 ### 방법 2: 코드 수정 (이미 적용됨)
 
