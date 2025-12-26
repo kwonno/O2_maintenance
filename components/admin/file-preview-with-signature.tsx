@@ -50,10 +50,33 @@ export default function FilePreviewWithSignature({
 
   const loadExcelFile = async (file: File) => {
     try {
-      const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+      // FileReader를 사용하여 파일 읽기
+      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          if (e.target?.result instanceof ArrayBuffer) {
+            resolve(e.target.result)
+          } else {
+            reject(new Error('파일 읽기 실패'))
+          }
+        }
+        reader.onerror = reject
+        reader.readAsArrayBuffer(file)
+      })
+      
+      // XLSX 라이브러리로 읽기 (타입 명시)
+      const workbook = XLSX.read(arrayBuffer, { 
+        type: 'array',
+        cellDates: false,
+        cellNF: false,
+        cellText: false,
+      })
       
       // 첫 번째 시트 가져오기
+      if (workbook.SheetNames.length === 0) {
+        throw new Error('시트가 없습니다.')
+      }
+      
       const firstSheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[firstSheetName]
       
@@ -64,9 +87,9 @@ export default function FilePreviewWithSignature({
       })
       
       setExcelHtml(html)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Excel 파일 로드 실패:', error)
-      setExcelHtml('<p class="text-red-600">엑셀 파일을 불러올 수 없습니다.</p>')
+      setExcelHtml(`<div class="p-4"><p class="text-red-600">엑셀 파일을 불러올 수 없습니다: ${error.message || '알 수 없는 오류'}</p></div>`)
     }
   }
 
@@ -136,22 +159,23 @@ export default function FilePreviewWithSignature({
           </div>
           <div
             ref={previewRef}
-            className="relative border-2 border-gray-300 rounded-lg overflow-hidden cursor-crosshair"
-            onClick={handleClick}
+            className="relative border-2 border-gray-300 rounded-lg overflow-hidden"
+            style={{ height: '600px' }}
           >
             <iframe
               ref={iframeRef}
               src={`${previewUrl}#page=${currentPage}`}
-              className="w-full h-[600px]"
+              className="w-full h-full pointer-events-none"
               title="PDF 미리보기"
-              onLoad={() => {
-                // PDF 페이지 수를 가져오는 것은 복잡하므로 기본값 사용
-                // 실제로는 PDF.js를 사용해야 하지만, 여기서는 간단하게 처리
-              }}
+            />
+            {/* 클릭 이벤트를 캡처하기 위한 투명 오버레이 */}
+            <div
+              className="absolute inset-0 cursor-crosshair z-10"
+              onClick={handleClick}
             />
             {currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && (
               <div
-                className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none"
+                className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
                 style={{
                   left: `${currentPosition.x}px`,
                   top: `${currentPosition.y}px`,
