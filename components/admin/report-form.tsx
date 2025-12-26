@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import FilePreviewWithSignature from './file-preview-with-signature'
 
 interface Tenant {
   id: string
@@ -137,7 +138,19 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
             id="file"
             type="file"
             accept=".pdf,.xlsx,.xls"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e) => {
+              const selectedFile = e.target.files?.[0] || null
+              setFile(selectedFile)
+              // 파일 변경 시 위치 초기화
+              if (selectedFile) {
+                setFormData({
+                  ...formData,
+                  signature_position_x: 0,
+                  signature_position_y: 0,
+                  signature_position_page: 1,
+                })
+              }
+            }}
             className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
           <p className="mt-1 text-xs text-gray-500">PDF, XLSX, XLS 파일을 업로드할 수 있습니다.</p>
@@ -155,49 +168,69 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">서명 위치 설정</h3>
-        <p className="text-xs text-gray-600 mb-3">고객이 서명할 위치를 미리 지정할 수 있습니다. (선택사항)</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="signature_position_x" className="block text-sm font-medium text-gray-700">
-              X 좌표
-            </label>
-            <input
-              id="signature_position_x"
-              type="number"
-              value={formData.signature_position_x}
-              onChange={(e) => setFormData({ ...formData, signature_position_x: parseInt(e.target.value) || 0 })}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="signature_position_y" className="block text-sm font-medium text-gray-700">
-              Y 좌표
-            </label>
-            <input
-              id="signature_position_y"
-              type="number"
-              value={formData.signature_position_y}
-              onChange={(e) => setFormData({ ...formData, signature_position_y: parseInt(e.target.value) || 0 })}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="signature_position_page" className="block text-sm font-medium text-gray-700">
-              페이지 번호
-            </label>
-            <input
-              id="signature_position_page"
-              type="number"
-              min="1"
-              value={formData.signature_position_page}
-              onChange={(e) => setFormData({ ...formData, signature_position_page: parseInt(e.target.value) || 1 })}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
+      {file && (
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">서명 위치 설정</h3>
+          <p className="text-xs text-gray-600 mb-3">
+            아래 미리보기에서 서명할 위치를 클릭하세요. 클릭한 위치가 자동으로 설정됩니다.
+          </p>
+          <FilePreviewWithSignature
+            file={file}
+            onPositionSelect={(position) => {
+              setFormData({
+                ...formData,
+                signature_position_x: position.x,
+                signature_position_y: position.y,
+                signature_position_page: position.page,
+              })
+            }}
+            currentPosition={{
+              x: formData.signature_position_x,
+              y: formData.signature_position_y,
+              page: formData.signature_position_page,
+            }}
+          />
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label htmlFor="signature_position_x" className="block text-xs font-medium text-gray-700">
+                X 좌표
+              </label>
+              <input
+                id="signature_position_x"
+                type="number"
+                value={formData.signature_position_x}
+                onChange={(e) => setFormData({ ...formData, signature_position_x: parseInt(e.target.value) || 0 })}
+                className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="signature_position_y" className="block text-xs font-medium text-gray-700">
+                Y 좌표
+              </label>
+              <input
+                id="signature_position_y"
+                type="number"
+                value={formData.signature_position_y}
+                onChange={(e) => setFormData({ ...formData, signature_position_y: parseInt(e.target.value) || 0 })}
+                className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="signature_position_page" className="block text-xs font-medium text-gray-700">
+                페이지 번호
+              </label>
+              <input
+                id="signature_position_page"
+                type="number"
+                min="1"
+                value={formData.signature_position_page}
+                onChange={(e) => setFormData({ ...formData, signature_position_page: parseInt(e.target.value) || 1 })}
+                className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {message && (
         <div className={`p-3 rounded ${message.includes('실패') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
