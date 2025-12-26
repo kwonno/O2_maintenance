@@ -16,23 +16,28 @@ export default function LoginPage() {
     setMessage('')
 
     try {
+      console.log('로그인 시도:', { email })
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include', // 쿠키 포함
       })
 
       const data = await response.json()
+      console.log('로그인 응답:', { status: response.status, data })
 
       if (!response.ok) {
         throw new Error(data.error || '로그인에 실패했습니다.')
       }
 
+      console.log('로그인 성공, 리다이렉트 중...')
       router.push('/app')
       router.refresh()
     } catch (error: any) {
+      console.error('로그인 에러:', error)
       setMessage(error.message || '로그인에 실패했습니다.')
     } finally {
       setLoading(false)
