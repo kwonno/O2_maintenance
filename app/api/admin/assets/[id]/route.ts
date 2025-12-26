@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, isOperatorAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function PUT(
+export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const user = await requireAuth()
@@ -17,6 +17,82 @@ export async function PUT(
       )
     }
 
+    const resolvedParams = await Promise.resolve(params)
+    const supabase = createAdminClient()
+
+    // 먼저 자산이 존재하는지 확인
+    const { data: asset, error: assetError } = await supabase
+      .from('assets')
+      .select('id')
+      .eq('id', resolvedParams.id)
+      .single()
+
+    if (assetError || !asset) {
+      return NextResponse.json(
+        { error: '자산을 찾을 수 없습니다.' },
+        { status: 404 }
+      )
+    }
+
+    // contract_items에서 연결된 항목 확인
+    const { data: contractItems } = await supabase
+      .from('contract_items')
+      .select('id')
+      .eq('asset_id', resolvedParams.id)
+
+    if (contractItems && contractItems.length > 0) {
+      // contract_items에서 먼저 삭제
+      const { error: deleteItemsError } = await supabase
+        .from('contract_items')
+        .delete()
+        .eq('asset_id', resolvedParams.id)
+
+      if (deleteItemsError) {
+        return NextResponse.json(
+          { error: '계약 항목 삭제에 실패했습니다.' },
+          { status: 500 }
+        )
+      }
+    }
+
+    // 자산 삭제
+    const { error: deleteError } = await supabase
+      .from('assets')
+      .delete()
+      .eq('id', resolvedParams.id)
+
+    if (deleteError) {
+      return NextResponse.json(
+        { error: deleteError.message || '자산 삭제에 실패했습니다.' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || '자산 삭제에 실패했습니다.' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    const user = await requireAuth()
+    const isAdmin = await isOperatorAdmin(user.id)
+
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: '권한이 없습니다.' },
+        { status: 403 }
+      )
+    }
+
+    const resolvedParams = await Promise.resolve(params)
     const body = await request.json()
     const { 
       tenant_id, 
@@ -91,7 +167,7 @@ export async function PUT(
     const { data, error } = await supabase
       .from('assets')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .select()
       .single()
 

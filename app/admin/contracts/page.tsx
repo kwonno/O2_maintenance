@@ -101,21 +101,12 @@ export default async function AdminContractsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-2">
-                        <Link
-                          href={`/admin/contracts/${contract.id}`}
-                          className="text-[#1A1A4D] hover:text-[#F12711]"
-                        >
-                          수정
-                        </Link>
-                        <span className="text-gray-300">|</span>
-                        <Link
-                          href={`/app/contracts/${contract.id}`}
-                          className="text-[#1A1A4D] hover:text-[#F12711]"
-                        >
-                          상세보기
-                        </Link>
-                      </div>
+                      <Link
+                        href={`/admin/contracts/${contract.id}`}
+                        className="text-[#1A1A4D] hover:text-[#F12711]"
+                      >
+                        상세보기
+                      </Link>
                     </td>
                   </tr>
                 )

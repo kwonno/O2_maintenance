@@ -70,6 +70,29 @@ export default function AdminAssetsPage() {
     return matchesSearch && matchesTenant && matchesStatus
   })
 
+  const handleDelete = async (assetId: string) => {
+    if (!confirm('정말 이 자산을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/assets/${assetId}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '자산 삭제에 실패했습니다.')
+      }
+
+      alert('자산이 삭제되었습니다.')
+      fetchData() // 목록 새로고침
+    } catch (error: any) {
+      alert(error.message || '자산 삭제에 실패했습니다.')
+    }
+  }
+
   if (loading) {
     return <div className="px-4 py-6 sm:px-0">로딩 중...</div>
   }
@@ -228,15 +251,26 @@ export default function AdminAssetsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link 
-                          href={`/admin/assets/${asset.id}`} 
-                          className="inline-flex items-center px-3 py-1.5 bg-[#1A1A4D] text-white rounded-lg hover:bg-[#0F0C29] transition-colors"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          수정
-                        </Link>
+                        <div className="flex space-x-2">
+                          <Link 
+                            href={`/admin/assets/${asset.id}`} 
+                            className="inline-flex items-center px-3 py-1.5 bg-[#1A1A4D] text-white rounded-lg hover:bg-[#0F0C29] transition-colors"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            수정
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(asset.id)}
+                            className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            삭제
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
