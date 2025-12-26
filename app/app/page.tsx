@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -7,7 +7,6 @@ import { ko } from 'date-fns/locale'
 
 export default async function DashboardPage() {
   const user = await requireAuth()
-  const supabase = await createClient()
 
   // 사용자의 tenant_id 가져오기 (서비스 역할 키 사용하여 RLS 우회)
   const tenantUserData = await getTenantUserByUserId(user.id)
@@ -18,6 +17,9 @@ export default async function DashboardPage() {
 
   const tenantId = tenantUserData.tenant_id
   const isOperatorAdmin = tenantUserData.role === 'operator_admin'
+
+  // RLS 문제를 피하기 위해 서비스 역할 키 사용
+  const supabase = createAdminClient()
 
   // 자산 수 조회
   let assetsQuery = supabase
@@ -46,7 +48,7 @@ export default async function DashboardPage() {
     return eosDate >= today && eosDate <= thirtyDaysLater
   }).length || 0
 
-  // 최근 보고서 조회
+  // 최근 보고서 조회 (RLS 우회)
   let reportsQuery = supabase
     .from('inspection_reports')
     .select(`

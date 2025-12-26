@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import { notFound } from 'next/navigation'
 import { getSignedUrl } from '@/lib/supabase/storage'
 import Link from 'next/link'
@@ -12,9 +13,6 @@ export default async function ReportDetailPage({
   params: { id: string }
 }) {
   const user = await requireAuth()
-  const supabase = await createClient()
-
-  const { getTenantUserByUserId } = await import('@/lib/auth/tenant-helper')
   const tenantUser = await getTenantUserByUserId(user.id)
 
   if (!tenantUser) {
@@ -24,6 +22,8 @@ export default async function ReportDetailPage({
   const tenantId = tenantUser.tenant_id
   const isOperatorAdmin = tenantUser.role === 'operator_admin'
 
+  // RLS 문제를 피하기 위해 서비스 역할 키 사용
+  const supabase = createAdminClient()
   let query = supabase
     .from('inspection_reports')
     .select(`

@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -11,9 +12,6 @@ export default async function AssetDetailPage({
   params: { id: string }
 }) {
   const user = await requireAuth()
-  const supabase = await createClient()
-
-  const { getTenantUserByUserId } = await import('@/lib/auth/tenant-helper')
   const tenantUser = await getTenantUserByUserId(user.id)
 
   if (!tenantUser) {
@@ -23,6 +21,8 @@ export default async function AssetDetailPage({
   const tenantId = tenantUser.tenant_id
   const isOperatorAdmin = tenantUser.role === 'operator_admin'
 
+  // RLS 문제를 피하기 위해 서비스 역할 키 사용
+  const supabase = createAdminClient()
   let query = supabase
     .from('assets')
     .select('*')
@@ -38,7 +38,7 @@ export default async function AssetDetailPage({
     notFound()
   }
 
-  // 연결된 계약 조회
+  // 연결된 계약 조회 (RLS 우회)
   const { data: contractItems } = await supabase
     .from('contract_items')
     .select(`
@@ -47,8 +47,8 @@ export default async function AssetDetailPage({
     `)
     .eq('asset_id', asset.id)
 
-  // 연결된 보고서 조회
-  const { data: reports } = await supabase
+  // 연결된 보고서 조회 (RLS 우회)
+  let reportsQuery = supabase
     .from('inspection_reports')
     .select(`
       id,
@@ -63,6 +63,12 @@ export default async function AssetDetailPage({
     .eq('tenant_id', asset.tenant_id)
     .order('created_at', { ascending: false })
     .limit(10)
+
+  if (!isOperatorAdmin) {
+    reportsQuery = reportsQuery.eq('tenant_id', tenantId)
+  }
+
+  const { data: reports } = await reportsQuery
 
   return (
     <div className="px-4 py-6 sm:px-0">

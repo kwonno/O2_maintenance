@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { format, differenceInDays } from 'date-fns'
@@ -11,9 +12,6 @@ export default async function ContractDetailPage({
   params: { id: string }
 }) {
   const user = await requireAuth()
-  const supabase = await createClient()
-
-  const { getTenantUserByUserId } = await import('@/lib/auth/tenant-helper')
   const tenantUser = await getTenantUserByUserId(user.id)
 
   if (!tenantUser) {
@@ -23,6 +21,8 @@ export default async function ContractDetailPage({
   const tenantId = tenantUser.tenant_id
   const isOperatorAdmin = tenantUser.role === 'operator_admin'
 
+  // RLS 문제를 피하기 위해 서비스 역할 키 사용
+  const supabase = createAdminClient()
   let query = supabase
     .from('contracts')
     .select('*')
@@ -38,7 +38,7 @@ export default async function ContractDetailPage({
     notFound()
   }
 
-  // 커버 자산 목록 조회
+  // 커버 자산 목록 조회 (RLS 우회)
   const { data: contractItems } = await supabase
     .from('contract_items')
     .select(`
