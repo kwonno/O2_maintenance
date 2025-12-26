@@ -35,9 +35,18 @@ export default function LoginPage() {
       }
 
       console.log('로그인 성공, 리다이렉트 중...')
+      
+      // 관리자 여부 확인
+      const checkAdminRes = await fetch('/api/auth/check')
+      const checkAdminData = await checkAdminRes.json()
+      
       // 쿠키가 설정되도록 약간의 지연 후 리다이렉트
       setTimeout(() => {
-        window.location.href = '/app'
+        if (checkAdminData.isAdmin) {
+          window.location.href = '/admin'
+        } else {
+          window.location.href = '/app'
+        }
       }, 100)
     } catch (error: any) {
       console.error('로그인 에러:', error)

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import ReportModal from '@/components/admin/report-modal'
 
 interface Inspection {
@@ -61,13 +62,13 @@ export default function AdminReportsPage() {
     return matchesSearch && matchesTenant
   })
 
-  const handleDeleteReport = async (reportId: string) => {
+  const handleDeleteReport = async (reportId: string, inspectionId: string) => {
     if (!confirm('정말 이 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       return
     }
 
     try {
-      const response = await fetch(`/api/admin/reports/${reportId}`, {
+      const response = await fetch(`/api/admin/reports/${reportId}?inspection_id=${inspectionId}`, {
         method: 'DELETE',
       })
 
@@ -170,15 +171,14 @@ export default function AdminReportsPage() {
                                   </p>
                                 </div>
                                 <div className="flex space-x-2">
-                                  <a
-                                    href={`/app/reports/${report.id}`}
-                                    target="_blank"
+                                  <Link
+                                    href={`/admin/reports/${report.id}`}
                                     className="text-xs text-blue-600 hover:text-blue-800"
                                   >
                                     보기
-                                  </a>
+                                  </Link>
                                   <button
-                                    onClick={() => handleDeleteReport(report.id)}
+                                    onClick={() => handleDeleteReport(report.id, inspection.id)}
                                     className="text-xs text-red-600 hover:text-red-800"
                                   >
                                     삭제

@@ -145,12 +145,28 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
                 </a>
               </div>
               {report.file_type === 'pdf' ? (
-                <div className="mt-4">
+                <div className="mt-4 relative">
                   <iframe
                     src={signedUrl}
                     className="w-full h-screen border border-gray-300 rounded"
                     title="보고서 PDF"
                   />
+                  {signatureData && report.signature_position && (
+                    <div
+                      className="absolute pointer-events-none z-10"
+                      style={{
+                        left: `${report.signature_position.x}px`,
+                        top: `${report.signature_position.y}px`,
+                        transform: 'translate(-50%, -50%)',
+                      }}
+                    >
+                      <img 
+                        src={signatureData} 
+                        alt="서명" 
+                        className="max-w-[150px] h-auto border-2 border-red-500 rounded shadow-lg bg-white p-1"
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
