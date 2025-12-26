@@ -52,7 +52,21 @@ export async function POST(request: NextRequest) {
     // 파일 업로드
     if (file) {
       const reportId = crypto.randomUUID()
-      const filePath = `tenant/${tenant_id}/inspections/${yyyy_mm}/${reportId}.pdf`
+      
+      // 파일 확장자 확인
+      const fileName = file.name.toLowerCase()
+      let fileExtension = 'pdf'
+      let contentType = 'application/pdf'
+      
+      if (fileName.endsWith('.xlsx')) {
+        fileExtension = 'xlsx'
+        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      } else if (fileName.endsWith('.xls')) {
+        fileExtension = 'xls'
+        contentType = 'application/vnd.ms-excel'
+      }
+      
+      const filePath = `tenant/${tenant_id}/inspections/${yyyy_mm}/${reportId}.${fileExtension}`
       
       // 파일을 Blob으로 변환
       const fileBuffer = await file.arrayBuffer()
@@ -61,7 +75,7 @@ export async function POST(request: NextRequest) {
         .upload(filePath, fileBuffer, {
           cacheControl: '3600',
           upsert: false,
-          contentType: 'application/pdf',
+          contentType: contentType,
         })
 
       if (uploadError) {
@@ -79,6 +93,8 @@ export async function POST(request: NextRequest) {
           inspection_id: inspection.id,
           file_path: filePath,
           summary: summary || null,
+          file_type: fileExtension,
+          signature_status: 'pending',
         })
 
       if (reportError) {

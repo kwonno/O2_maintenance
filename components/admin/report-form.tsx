@@ -122,15 +122,16 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
         </div>
         <div>
           <label htmlFor="file" className="block text-sm font-medium text-gray-700">
-            보고서 PDF
+            보고서 파일 (PDF 또는 엑셀)
           </label>
           <input
             id="file"
             type="file"
-            accept=".pdf"
+            accept=".pdf,.xlsx,.xls"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
             className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
+          <p className="mt-1 text-xs text-gray-500">PDF, XLSX, XLS 파일을 업로드할 수 있습니다.</p>
         </div>
       </div>
       <div>
