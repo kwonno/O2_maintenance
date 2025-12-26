@@ -77,129 +77,170 @@ export default function AdminAssetsPage() {
   return (
     <div className="px-4 py-6 sm:px-0">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">자산 관리</h1>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          자산 생성
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-[#1A1A4D] mb-1">자산 관리</h1>
+          <p className="text-sm text-gray-600">모든 고객사의 자산을 관리합니다</p>
+        </div>
+        <div className="flex space-x-2">
+          <Link
+            href="/admin/assets/upload"
+            className="inline-flex items-center px-4 py-2 bg-[#F12711] text-white font-medium rounded-lg hover:bg-[#F53C05] transition-colors"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            일괄 업로드
+          </Link>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 bg-[#1A1A4D] text-white font-medium rounded-lg hover:bg-[#0F0C29] transition-colors"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            자산 생성
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-orange-500 to-pink-600 px-6 py-4">
-          <h2 className="text-xl font-semibold text-white flex items-center mb-4">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-            </svg>
-            자산 목록
-          </h2>
-          
-          {/* 검색 및 필터 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <input
-                type="text"
-                placeholder="시리얼, 별칭, 제조사, 모델 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-white border-opacity-30 rounded-lg bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-70 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-              />
-            </div>
-            <div>
-              <select
-                value={filterTenant}
-                onChange={(e) => setFilterTenant(e.target.value)}
-                className="w-full px-4 py-2 border border-white border-opacity-30 rounded-lg bg-white bg-opacity-20 text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-              >
-                <option value="">모든 고객사</option>
-                {tenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.name} className="text-gray-900">
-                    {tenant.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-white border-opacity-30 rounded-lg bg-white bg-opacity-20 text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-              >
-                <option value="">모든 상태</option>
-                <option value="active" className="text-gray-900">활성</option>
-                <option value="inactive" className="text-gray-900">비활성</option>
-                <option value="retired" className="text-gray-900">폐기</option>
-              </select>
-            </div>
+      {/* 검색 및 필터 */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <input
+              type="text"
+              placeholder="시리얼, 별칭, 제조사, 모델 검색..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A1A4D] focus:border-[#1A1A4D]"
+            />
+          </div>
+          <div>
+            <select
+              value={filterTenant}
+              onChange={(e) => setFilterTenant(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A1A4D] focus:border-[#1A1A4D]"
+            >
+              <option value="">모든 고객사</option>
+              {tenants.map((tenant) => (
+                <option key={tenant.id} value={tenant.name}>
+                  {tenant.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A1A4D] focus:border-[#1A1A4D]"
+            >
+              <option value="">모든 상태</option>
+              <option value="active">활성</option>
+              <option value="inactive">비활성</option>
+              <option value="retired">폐기</option>
+            </select>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
 
         {filteredAssets.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-[#F3F3FB]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
                     고객사
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    자산
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    제조사
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    제조사/모델
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    모델
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    시리얼
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    시리얼번호
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    계약기간(시작)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    계약기간(종료)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    EOL
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    발주번호
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
+                    비고
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
                     상태
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-[#1A1A4D] uppercase tracking-wider">
                     작업
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAssets.map((asset) => (
-                  <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {asset.tenant?.name || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {asset.alias || asset.serial || '이름 없음'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {asset.vendor} {asset.model}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {asset.serial || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        asset.status === 'active' ? 'bg-green-100 text-green-800' :
-                        asset.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {asset.status === 'active' ? '활성' : asset.status === 'inactive' ? '비활성' : '폐기'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link 
-                        href={`/admin/assets/${asset.id}`} 
-                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        수정
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {filteredAssets.map((asset: any) => {
+                  const contract = asset.activeContract?.contract
+                  return (
+                    <tr key={asset.id} className="hover:bg-[#F3F3FB] transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.tenant?.name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.vendor || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.model || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.serial || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {contract ? new Date(contract.start_date).toLocaleDateString('ko-KR') : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {contract ? new Date(contract.end_date).toLocaleDateString('ko-KR') : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.eol_date ? new Date(asset.eol_date).toLocaleDateString('ko-KR') : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.order_number || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                        {asset.remarks || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          asset.status === 'active' ? 'bg-green-100 text-green-800' :
+                          asset.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {asset.status === 'active' ? '활성' : asset.status === 'inactive' ? '비활성' : '폐기'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Link 
+                          href={`/admin/assets/${asset.id}`} 
+                          className="inline-flex items-center px-3 py-1.5 bg-[#1A1A4D] text-white rounded-lg hover:bg-[#0F0C29] transition-colors"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          수정
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
