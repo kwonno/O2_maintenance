@@ -19,7 +19,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/app', request.url))
   }
 
-  return NextResponse.next()
+  // 쿠키를 명시적으로 전달하여 세션 유지
+  const response = NextResponse.next()
+  
+  // 쿠키를 명시적으로 전달하여 세션 유지
+  // 쿠키가 있으면 응답에 다시 설정 (만료 시간 갱신)
+  if (userId && sessionId) {
+    const isProduction = process.env.NODE_ENV === 'production'
+    response.cookies.set('user_id', userId, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7일
+      path: '/',
+    })
+    
+    response.cookies.set('session_id', sessionId, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7일
+      path: '/',
+    })
+  }
+
+  return response
 }
 
 export const config = {

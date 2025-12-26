@@ -34,8 +34,10 @@ export default function LoginPage() {
       }
 
       console.log('로그인 성공, 리다이렉트 중...')
-      router.push('/app')
-      router.refresh()
+      // 쿠키가 설정되도록 약간의 지연 후 리다이렉트
+      setTimeout(() => {
+        window.location.href = '/app'
+      }, 100)
     } catch (error: any) {
       console.error('로그인 에러:', error)
       setMessage(error.message || '로그인에 실패했습니다.')
