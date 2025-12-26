@@ -29,27 +29,44 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function verifyPassword(email: string, password: string): Promise<User | null> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, name, created_at, password_hash')
-    .eq('email', email.toLowerCase())
-    .single()
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, name, created_at, password_hash')
+      .eq('email', email.toLowerCase())
+      .single()
 
-  if (error || !data) {
+    if (error) {
+      console.error('Database error:', error)
+      return null
+    }
+
+    if (!data) {
+      console.error('User not found:', email)
+      return null
+    }
+
+    if (!data.password_hash) {
+      console.error('Password hash missing for user:', email)
+      return null
+    }
+
+    const isValid = await bcrypt.compare(password, data.password_hash)
+    if (!isValid) {
+      console.error('Password mismatch for user:', email)
+      return null
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      created_at: data.created_at,
+    }
+  } catch (error) {
+    console.error('verifyPassword error:', error)
     return null
-  }
-
-  const isValid = await bcrypt.compare(password, data.password_hash)
-  if (!isValid) {
-    return null
-  }
-
-  return {
-    id: data.id,
-    email: data.email,
-    name: data.name,
-    created_at: data.created_at,
   }
 }
 
