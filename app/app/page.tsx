@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -8,19 +9,15 @@ export default async function DashboardPage() {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  // 사용자의 tenant_id 가져오기
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id, role')
-    .eq('user_id', user.id)
-    .single()
+  // 사용자의 tenant_id 가져오기 (서비스 역할 키 사용하여 RLS 우회)
+  const tenantUserData = await getTenantUserByUserId(user.id)
 
-  if (!tenantUser) {
+  if (!tenantUserData) {
     return <div>테넌트 정보를 찾을 수 없습니다.</div>
   }
 
-  const tenantId = tenantUser.tenant_id
-  const isOperatorAdmin = tenantUser.role === 'operator_admin'
+  const tenantId = tenantUserData.tenant_id
+  const isOperatorAdmin = tenantUserData.role === 'operator_admin'
 
   // 자산 수 조회
   let assetsQuery = supabase

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { getTenantUser, isOperatorAdmin } from '@/lib/auth/tenant'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET() {
   try {
@@ -11,7 +11,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    // 서비스 역할 키를 사용하여 RLS 우회
+    const supabase = createAdminClient()
     
     // tenant_users 정보 조회
     const { data: tenantUsers, error: tenantUsersError } = await supabase

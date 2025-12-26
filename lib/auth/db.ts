@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import bcrypt from 'bcryptjs'
 
 export interface User {
@@ -34,6 +35,7 @@ export async function verifyPassword(email: string, password: string): Promise<U
       return null
     }
 
+    // users 테이블은 RLS가 없거나 간단하므로 일반 클라이언트 사용 가능
     const supabase = await createClient()
     
     const { data, error } = await supabase

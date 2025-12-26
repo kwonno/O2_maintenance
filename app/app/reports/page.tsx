@@ -8,11 +8,8 @@ export default async function ReportsPage() {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id, role')
-    .eq('user_id', user.id)
-    .single()
+  const { getTenantUserByUserId } = await import('@/lib/auth/tenant-helper')
+  const tenantUser = await getTenantUserByUserId(user.id)
 
   if (!tenantUser) {
     return <div>테넌트 정보를 찾을 수 없습니다.</div>

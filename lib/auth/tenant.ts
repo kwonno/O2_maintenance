@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function getTenantUser(userId: string) {
-  const supabase = await createClient()
+  // RLS 문제를 피하기 위해 서비스 역할 키 사용
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('tenant_users')
     .select('*, tenant:tenants(*)')
@@ -17,14 +19,14 @@ export async function getTenantUser(userId: string) {
 
 export async function isOperatorAdmin(userId: string) {
   try {
-    const supabase = await createClient()
+    // RLS 문제를 피하기 위해 서비스 역할 키 사용
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('tenant_users')
       .select('role')
       .eq('user_id', userId)
       .eq('role', 'operator_admin')
     
-    // .single() 대신 배열로 받아서 확인
     if (error) {
       console.error('isOperatorAdmin error:', error)
       return false

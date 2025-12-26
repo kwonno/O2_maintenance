@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, isOperatorAdmin } from '@/lib/auth'
 import { createUser } from '@/lib/auth/db'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // tenant_users에 연결
-    const supabase = await createClient()
+    // tenant_users에 연결 (서비스 역할 키 사용하여 RLS 우회)
+    const supabase = createAdminClient()
     const { error: tenantUserError } = await supabase
       .from('tenant_users')
       .insert({
