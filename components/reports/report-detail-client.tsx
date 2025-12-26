@@ -5,7 +5,7 @@ import SignatureModal from './signature-modal'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
-// PDF 서명 오버레이 컴포넌트
+// PDF 서명 오버레이 컴포넌트 - iframe 내부 좌표를 화면 좌표로 변환
 function PdfSignatureOverlay({ 
   signatureData, 
   position, 
@@ -15,54 +15,30 @@ function PdfSignatureOverlay({
   position: { x: number; y: number; page: number }
   iframeId: string
 }) {
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const [iframeRect, setIframeRect] = useState<DOMRect | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const updatePosition = () => {
-      const iframe = document.getElementById(iframeId) as HTMLIFrameElement
-      if (iframe && overlayRef.current) {
-        const rect = iframe.getBoundingClientRect()
-        setIframeRect(rect)
-      }
-    }
-
-    updatePosition()
-    window.addEventListener('scroll', updatePosition, true)
-    window.addEventListener('resize', updatePosition)
-
-    // iframe 로드 후 위치 업데이트
-    const iframe = document.getElementById(iframeId) as HTMLIFrameElement
-    if (iframe) {
-      iframe.addEventListener('load', updatePosition)
-    }
-
-    return () => {
-      window.removeEventListener('scroll', updatePosition, true)
-      window.removeEventListener('resize', updatePosition)
-      if (iframe) {
-        iframe.removeEventListener('load', updatePosition)
-      }
-    }
-  }, [iframeId])
-
-  if (!iframeRect) return null
-
+  // 서명을 iframe 컨테이너 내부에 상대적으로 배치
+  // position은 PDF 문서 내부의 좌표이므로, iframe의 스케일과 위치를 고려해야 함
+  // 간단한 방법: 컨테이너 내부에 절대 위치로 배치
   return (
     <div
-      ref={overlayRef}
-      className="absolute pointer-events-none z-10"
-      style={{
-        left: `${iframeRect.left + position.x}px`,
-        top: `${iframeRect.top + position.y}px`,
-        transform: 'translate(-50%, -50%)',
-      }}
+      ref={containerRef}
+      className="absolute inset-0 pointer-events-none z-10"
     >
-      <img 
-        src={signatureData} 
-        alt="서명" 
-        className="max-w-[150px] h-auto border-2 border-red-500 rounded shadow-lg bg-white p-1"
-      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
+        <img 
+          src={signatureData} 
+          alt="서명" 
+          className="max-w-[150px] h-auto border-2 border-red-500 rounded shadow-lg bg-white p-1"
+        />
+      </div>
     </div>
   )
 }
@@ -207,7 +183,7 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
                 </a>
               </div>
               {report.file_type === 'pdf' ? (
-                <div className="mt-4 relative" style={{ height: '800px', overflow: 'auto' }}>
+                <div className="mt-4 relative" style={{ height: '800px' }}>
                   <iframe
                     src={`${signedUrl}#page=${report.signature_position?.page || 1}`}
                     className="w-full h-full border border-gray-300 rounded"
