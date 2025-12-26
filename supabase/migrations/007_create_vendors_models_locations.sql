@@ -32,6 +32,9 @@ CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
 CREATE INDEX IF NOT EXISTS idx_locations_name ON locations(name);
 
 -- RLS 정책 (모든 사용자가 읽을 수 있음, 관리자만 수정 가능)
+-- 주의: 커스텀 인증 시스템을 사용하므로 RLS는 비활성화하고 애플리케이션 레벨에서 권한 체크
+-- 또는 모든 사용자가 읽을 수 있도록 설정 (수정은 API에서 권한 체크)
+
 ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE models ENABLE ROW LEVEL SECURITY;
 ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
@@ -41,85 +44,17 @@ CREATE POLICY "vendors_select_all" ON vendors FOR SELECT USING (true);
 CREATE POLICY "models_select_all" ON models FOR SELECT USING (true);
 CREATE POLICY "locations_select_all" ON locations FOR SELECT USING (true);
 
--- 관리자만 수정 가능 (tenant_users에서 operator_admin 역할 확인)
-CREATE POLICY "vendors_insert_admin" ON vendors FOR INSERT 
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
+-- 수정/삭제는 RLS로 제한하지 않고 API 레벨에서 권한 체크
+-- (커스텀 인증 시스템에서는 auth.uid()를 사용할 수 없음)
+CREATE POLICY "vendors_insert_all" ON vendors FOR INSERT WITH CHECK (true);
+CREATE POLICY "vendors_update_all" ON vendors FOR UPDATE USING (true);
+CREATE POLICY "vendors_delete_all" ON vendors FOR DELETE USING (true);
 
-CREATE POLICY "vendors_update_admin" ON vendors FOR UPDATE 
-  USING (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
+CREATE POLICY "models_insert_all" ON models FOR INSERT WITH CHECK (true);
+CREATE POLICY "models_update_all" ON models FOR UPDATE USING (true);
+CREATE POLICY "models_delete_all" ON models FOR DELETE USING (true);
 
-CREATE POLICY "vendors_delete_admin" ON vendors FOR DELETE 
-  USING (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
-
-CREATE POLICY "models_insert_admin" ON models FOR INSERT 
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
-
-CREATE POLICY "models_update_admin" ON models FOR UPDATE 
-  USING (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
-
-CREATE POLICY "models_delete_admin" ON models FOR DELETE 
-  USING (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
-
-CREATE POLICY "locations_insert_admin" ON locations FOR INSERT 
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
-
-CREATE POLICY "locations_update_admin" ON locations FOR UPDATE 
-  USING (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
-
-CREATE POLICY "locations_delete_admin" ON locations FOR DELETE 
-  USING (
-    EXISTS (
-      SELECT 1 FROM tenant_users 
-      WHERE user_id = auth.uid()::text 
-      AND role = 'operator_admin'
-    )
-  );
+CREATE POLICY "locations_insert_all" ON locations FOR INSERT WITH CHECK (true);
+CREATE POLICY "locations_update_all" ON locations FOR UPDATE USING (true);
+CREATE POLICY "locations_delete_all" ON locations FOR DELETE USING (true);
 
