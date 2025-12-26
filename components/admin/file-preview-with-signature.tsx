@@ -123,13 +123,12 @@ export default function FilePreviewWithSignature({
                 이전
               </button>
               <span className="text-sm text-gray-700">
-                {currentPage} / {totalPages}
+                페이지 {currentPage}
               </span>
               <button
                 type="button"
-                onClick={() => handlePdfPageChange(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage >= totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                onClick={() => handlePdfPageChange(currentPage + 1)}
+                className="px-3 py-1 text-sm border border-gray-300 rounded"
               >
                 다음
               </button>
