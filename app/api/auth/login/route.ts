@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyPassword } from '@/lib/auth/db'
-import { cookies } from 'next/headers'
 
 const SESSION_COOKIE_NAME = 'session_id'
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7일
 
 export async function POST(request: NextRequest) {
   try {
+    // 요청 본문 읽기
     let body
     try {
-      body = await request.json()
-    } catch (e) {
+      const text = await request.text()
+      if (!text) {
+        return NextResponse.json(
+          { error: '요청 본문이 비어있습니다.' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (e: any) {
       console.error('JSON parse error:', e)
       return NextResponse.json(
         { error: '잘못된 요청 형식입니다.' },
@@ -20,8 +27,6 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = body || {}
 
-    console.log('로그인 요청 받음:', { email, hasPassword: !!password })
-
     if (!email || !password) {
       return NextResponse.json(
         { error: '이메일과 비밀번호를 입력해주세요.' },
@@ -29,35 +34,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('비밀번호 검증 시작...')
+    // 비밀번호 검증
     const user = await verifyPassword(email, password)
     
     if (!user) {
-      console.error('Login failed: Invalid credentials for', email)
       return NextResponse.json(
         { error: '이메일 또는 비밀번호가 올바르지 않습니다.' },
         { status: 401 }
       )
     }
 
-    console.log('로그인 성공:', { userId: user.id, email: user.email })
-
-    // 세션 생성 (쿠키 설정)
+    // 세션 생성
     const sessionId = crypto.randomUUID()
-    
-    // 쿠키 설정 (개발 환경에서는 secure: false)
     const isProduction = process.env.NODE_ENV === 'production'
     
-    const response = NextResponse.json({ 
+    // 응답 생성
+    const responseData = { 
       success: true, 
       user: { id: user.id, email: user.email, name: user.name } 
-    }, {
+    }
+
+    const response = NextResponse.json(responseData, {
       status: 200,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
       }
     })
 
+    // 쿠키 설정
     response.cookies.set(SESSION_COOKIE_NAME, sessionId, {
       httpOnly: true,
       secure: isProduction,
@@ -74,25 +78,23 @@ export async function POST(request: NextRequest) {
       path: '/',
     })
 
-    console.log('쿠키 설정 완료')
     return response
   } catch (error: any) {
-    console.error('Login error:', error)
-    console.error('Error stack:', error.stack)
+    console.error('Login API error:', error)
+    console.error('Error stack:', error?.stack)
     
     // 항상 유효한 JSON 응답 반환
     return NextResponse.json(
       { 
-        error: error.message || '로그인에 실패했습니다.',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: error?.message || '로그인에 실패했습니다.',
+        type: 'server_error'
       },
       { 
         status: 500,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
         }
       }
     )
   }
 }
-

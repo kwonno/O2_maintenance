@@ -30,13 +30,12 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function verifyPassword(email: string, password: string): Promise<User | null> {
   try {
-    const supabase = await createClient()
-    
     if (!email || !password) {
-      console.error('Missing email or password')
       return null
     }
 
+    const supabase = await createClient()
+    
     const { data, error } = await supabase
       .from('users')
       .select('id, email, name, created_at, password_hash')
@@ -45,35 +44,16 @@ export async function verifyPassword(email: string, password: string): Promise<U
 
     if (error) {
       console.error('Database error:', error)
-      console.error('Error code:', error.code)
-      console.error('Error message:', error.message)
       return null
     }
 
-    if (!data) {
-      console.error('User not found:', email)
+    if (!data || !data.password_hash) {
       return null
     }
-
-    if (!data.password_hash) {
-      console.error('Password hash missing for user:', email)
-      return null
-    }
-
-    console.log('비밀번호 비교 시작...', { 
-      email, 
-      hashLength: data.password_hash.length,
-      hashPrefix: data.password_hash.substring(0, 20)
-    })
 
     const isValid = await bcrypt.compare(password, data.password_hash)
     
-    console.log('비밀번호 비교 결과:', isValid)
-    
     if (!isValid) {
-      console.error('Password mismatch for user:', email)
-      // 디버깅: 해시 확인
-      console.error('Stored hash:', data.password_hash.substring(0, 30) + '...')
       return null
     }
 
@@ -85,7 +65,6 @@ export async function verifyPassword(email: string, password: string): Promise<U
     }
   } catch (error: any) {
     console.error('verifyPassword error:', error)
-    console.error('Error stack:', error.stack)
     return null
   }
 }
