@@ -1,4 +1,4 @@
-import { requireAuth, isOperatorAdmin } from '@/lib/auth'
+import { getCurrentUser, isOperatorAdmin } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import AdminNav from '@/components/admin/nav'
 
@@ -7,7 +7,13 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  const user = await requireAuth()
+  // requireAuth 대신 getCurrentUser를 사용하여 리다이렉트 루프 방지
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect('/login')
+  }
+
   const isAdmin = await isOperatorAdmin(user.id)
 
   if (!isAdmin) {

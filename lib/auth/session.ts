@@ -1,12 +1,11 @@
 import { cookies } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { User } from './db'
 
 const SESSION_COOKIE_NAME = 'session_id'
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7일
 
 export async function createSession(userId: string): Promise<string> {
-  const supabase = await createClient()
   const sessionId = crypto.randomUUID()
 
   // 세션을 DB에 저장 (또는 메모리/Redis 사용 가능)
@@ -47,7 +46,8 @@ export async function getCurrentUser(): Promise<User | null> {
     return null
   }
 
-  const supabase = await createClient()
+  // 서비스 역할 키를 사용하여 RLS 우회
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('users')
     .select('id, email, name, created_at')
@@ -55,6 +55,7 @@ export async function getCurrentUser(): Promise<User | null> {
     .single()
 
   if (error || !data) {
+    console.error('getCurrentUser error:', error)
     return null
   }
 
