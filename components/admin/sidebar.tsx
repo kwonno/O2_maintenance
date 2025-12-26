@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
+import Logo from '@/components/logo'
 
 export default function AdminSidebar() {
   const pathname = usePathname()
@@ -29,9 +30,10 @@ export default function AdminSidebar() {
       {/* 데스크톱 사이드바 */}
       <aside className="hidden lg:fixed lg:left-0 lg:top-0 lg:h-full lg:w-64 lg:bg-[#1A1A4D] lg:text-white lg:flex lg:flex-col lg:z-50">
         {/* 로고 영역 */}
-        <div className="h-16 flex items-center justify-center border-b border-[#0F0C29]">
-          <Link href="/admin" className="text-xl font-bold text-white">
-            관리자 대시보드
+        <div className="h-16 flex items-center justify-center border-b border-[#0F0C29] px-4">
+          <Link href="/admin" className="flex flex-col items-center justify-center">
+            <Logo width={120} height={24} className="brightness-0 invert mb-1" />
+            <span className="text-xs text-gray-300 mt-1">관리자</span>
           </Link>
         </div>
 
@@ -94,8 +96,9 @@ export default function AdminSidebar() {
           <aside className="lg:hidden fixed left-0 top-0 h-full w-64 bg-[#1A1A4D] text-white flex flex-col z-50">
             {/* 로고 영역 */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-[#0F0C29]">
-              <Link href="/admin" className="text-xl font-bold text-white">
-                관리자 대시보드
+              <Link href="/admin" className="flex flex-col items-center">
+                <Logo width={120} height={24} className="brightness-0 invert mb-1" />
+                <span className="text-xs text-gray-300">관리자</span>
               </Link>
               <button
                 onClick={() => setMobileMenuOpen(false)}

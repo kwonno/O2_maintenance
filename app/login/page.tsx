@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Logo from '@/components/logo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -47,11 +48,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <div>
-          <h2 className="text-center text-3xl font-bold text-gray-900">
-            로그인
+    <div className="min-h-screen flex items-center justify-center bg-[#FCFCFF]">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex flex-col items-center">
+          <Logo width={180} height={36} className="mb-4" />
+          <h2 className="text-center text-xl font-semibold text-[#1A1A4D] mt-2">
+            통합유지보수 시스템
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
@@ -93,7 +95,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1A1A4D] hover:bg-[#0F0C29] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1A1A4D] disabled:opacity-50 transition-colors"
           >
             {loading ? '처리 중...' : '로그인'}
           </button>

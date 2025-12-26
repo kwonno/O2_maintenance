@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import Logo from '@/components/logo'
 
 export default function AppSidebar() {
   const pathname = usePathname()
@@ -41,9 +42,9 @@ export default function AppSidebar() {
       {/* 데스크톱 사이드바 */}
       <aside className="hidden lg:fixed lg:left-0 lg:top-0 lg:h-full lg:w-64 lg:bg-[#1A1A4D] lg:text-white lg:flex lg:flex-col lg:z-50">
         {/* 로고 영역 */}
-        <div className="h-16 flex items-center justify-center border-b border-[#0F0C29]">
-          <Link href="/app" className="text-xl font-bold text-white">
-            O2 IT Maintenance
+        <div className="h-16 flex items-center justify-center border-b border-[#0F0C29] px-4">
+          <Link href="/app" className="flex items-center justify-center">
+            <Logo width={120} height={24} className="brightness-0 invert" />
           </Link>
         </div>
 
@@ -108,8 +109,8 @@ export default function AppSidebar() {
           <aside className="lg:hidden fixed left-0 top-0 h-full w-64 bg-[#1A1A4D] text-white flex flex-col z-50">
             {/* 로고 영역 */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-[#0F0C29]">
-              <Link href="/app" className="text-xl font-bold text-white">
-                O2 IT Maintenance
+              <Link href="/app" className="flex items-center">
+                <Logo width={120} height={24} className="brightness-0 invert" />
               </Link>
               <button
                 onClick={() => setMobileMenuOpen(false)}
