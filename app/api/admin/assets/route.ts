@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
       alias, 
       status, 
       eos_date, 
-      eol_date 
+      eol_date,
+      order_number,
+      remarks
     } = body
 
     if (!tenant_id) {
@@ -74,6 +76,8 @@ export async function POST(request: NextRequest) {
     if (alias) insertData.alias = alias
     if (eos_date) insertData.eos_date = eos_date
     if (eol_date) insertData.eol_date = eol_date
+    if (order_number) insertData.order_number = order_number
+    if (remarks) insertData.remarks = remarks
 
     const { data, error } = await supabase
       .from('assets')

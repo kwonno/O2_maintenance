@@ -183,6 +183,14 @@ export default async function AssetDetailPage({
                 {asset.eol_date ? format(new Date(asset.eol_date), 'yyyy년 MM월 dd일', { locale: ko }) : '-'}
               </dd>
             </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">발주번호</dt>
+              <dd className="mt-1 text-sm text-gray-900">{asset.order_number || '-'}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-gray-500">비고</dt>
+              <dd className="mt-1 text-sm text-gray-900">{asset.remarks || '-'}</dd>
+            </div>
           </dl>
         </div>
       </div>

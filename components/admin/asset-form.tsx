@@ -9,7 +9,7 @@ interface Tenant {
 }
 
 export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tenant[], asset?: any, onSuccess?: () => void }) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     tenant_id: asset?.tenant_id || tenants[0]?.id || '',
     vendor_id: asset?.vendor_id || '',
     vendor: asset?.vendor || '', // 기존 데이터 호환성
@@ -22,6 +22,8 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
     status: asset?.status || 'active',
     eos_date: asset?.eos_date || '',
     eol_date: asset?.eol_date || '',
+    order_number: asset?.order_number || '',
+    remarks: asset?.remarks || '',
   })
   const [vendors, setVendors] = useState<any[]>([])
   const [models, setModels] = useState<any[]>([])
@@ -87,6 +89,8 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
         const submitData: any = {
           tenant_id: formData.tenant_id,
           status: formData.status,
+          order_number: (formData as any).order_number || null,
+          remarks: (formData as any).remarks || null,
         }
 
         // vendor_id가 있으면 추가
@@ -121,6 +125,8 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
         submitData.alias = formData.alias || null
         submitData.eos_date = formData.eos_date || null
         submitData.eol_date = formData.eol_date || null
+        submitData.order_number = (formData as any).order_number || null
+        submitData.remarks = (formData as any).remarks || null
 
         const response = await fetch(`/api/admin/assets/${asset.id}`, {
           method: 'PUT',
@@ -138,7 +144,7 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
       } else {
         // 생성은 API 사용
         // vendor_id, model_id, location_id를 사용하되, 기존 데이터 호환성을 위해 vendor, model, location도 포함
-        const submitData = {
+        const submitData: any = {
           ...formData,
           vendor: vendors.find(v => v.id === formData.vendor_id)?.name || '',
           model: models.find(m => m.id === formData.model_id)?.name || '',
@@ -170,6 +176,8 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
           status: 'active',
           eos_date: '',
           eol_date: '',
+          order_number: '',
+          remarks: '',
         })
         if (onSuccess) {
           setTimeout(() => onSuccess(), 500)
@@ -319,6 +327,32 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
             value={formData.eol_date}
             onChange={(e) => setFormData({ ...formData, eol_date: e.target.value })}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div>
+          <label htmlFor="order_number" className="block text-sm font-medium text-gray-700">
+            발주번호 (선택사항)
+          </label>
+          <input
+            id="order_number"
+            type="text"
+            value={formData.order_number}
+            onChange={(e) => setFormData({ ...formData, order_number: e.target.value })}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder="예: 102503-00969"
+          />
+        </div>
+        <div>
+          <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
+            비고 (선택사항)
+          </label>
+          <textarea
+            id="remarks"
+            value={formData.remarks}
+            onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+            rows={3}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder="비고 사항을 입력하세요"
           />
         </div>
       </div>

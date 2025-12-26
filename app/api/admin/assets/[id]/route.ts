@@ -30,7 +30,9 @@ export async function PUT(
       alias, 
       status, 
       eos_date, 
-      eol_date 
+      eol_date,
+      order_number,
+      remarks
     } = body
 
     const supabase = createAdminClient()
@@ -83,6 +85,8 @@ export async function PUT(
     updateData.alias = alias || null
     updateData.eos_date = eos_date || null
     updateData.eol_date = eol_date || null
+    updateData.order_number = order_number || null
+    updateData.remarks = remarks || null
 
     const { data, error } = await supabase
       .from('assets')

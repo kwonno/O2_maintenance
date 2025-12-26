@@ -20,7 +20,27 @@ export async function GET() {
       .select('*, tenant:tenants(name)')
       .order('created_at', { ascending: false })
 
-    return NextResponse.json({ assets: assets || [] })
+    // 각 자산에 대한 계약 정보 조회
+    const assetsWithContracts = await Promise.all(
+      (assets || []).map(async (asset: any) => {
+        const { data: contractItems } = await supabaseAdmin
+          .from('contract_items')
+          .select(`
+            *,
+            contract:contracts(*)
+          `)
+          .eq('asset_id', asset.id)
+          .order('contract(end_date)', { ascending: false })
+          .limit(1)
+
+        return {
+          ...asset,
+          activeContract: contractItems && contractItems.length > 0 ? contractItems[0] : null,
+        }
+      })
+    )
+
+    return NextResponse.json({ assets: assetsWithContracts || [] })
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || '자산 목록 조회에 실패했습니다.' },
