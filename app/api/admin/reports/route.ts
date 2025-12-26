@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const tenant_id = formData.get('tenant_id') as string
-    const yyyy_mm = formData.get('yyyy_mm') as string
+    const title = formData.get('title') as string
     const inspection_date = formData.get('inspection_date') as string
     const summary = formData.get('summary') as string
     const file = formData.get('file') as File | null
@@ -24,12 +24,16 @@ export async function POST(request: NextRequest) {
     const signaturePositionY = formData.get('signature_position_y') as string
     const signaturePositionPage = formData.get('signature_position_page') as string
 
-    if (!tenant_id || !yyyy_mm || !inspection_date) {
+    if (!tenant_id || !title || !inspection_date) {
       return NextResponse.json(
         { error: '필수 필드가 누락되었습니다.' },
         { status: 400 }
       )
     }
+
+    // yyyy_mm은 title에서 추출하거나 날짜에서 생성 (하위 호환성)
+    const date = new Date(inspection_date)
+    const yyyy_mm = `${date.getFullYear()}_${String(date.getMonth() + 1).padStart(2, '0')}`
 
     const supabase = createAdminClient()
 
@@ -105,6 +109,7 @@ export async function POST(request: NextRequest) {
           tenant_id,
           inspection_id: inspection.id,
           file_path: filePath,
+          title: title,
           summary: summary || null,
           file_type: fileExtension,
           signature_status: 'pending',

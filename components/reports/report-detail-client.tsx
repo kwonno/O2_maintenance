@@ -52,7 +52,7 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
         <div className="px-4 py-5 sm:p-6">
           <div className="flex justify-between items-start mb-4">
             <h1 className="text-2xl font-bold text-[#1A1A4D]">
-              {report.inspection?.yyyy_mm} 점검 보고서
+              {report.title || report.inspection?.yyyy_mm || '점검 보고서'}
             </h1>
             {canSign && signatureStatus === 'pending' && (
               <button

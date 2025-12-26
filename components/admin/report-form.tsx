@@ -12,7 +12,7 @@ interface Tenant {
 export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], onSuccess?: () => void }) {
   const [formData, setFormData] = useState({
     tenant_id: tenants[0]?.id || '',
-    yyyy_mm: '',
+    title: '',
     inspection_date: new Date().toISOString().split('T')[0],
     summary: '',
     signature_position_x: 0,
@@ -41,7 +41,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
       // API를 통해 점검 및 보고서 생성
       const formDataToSend = new FormData()
       formDataToSend.append('tenant_id', formData.tenant_id)
-      formDataToSend.append('yyyy_mm', formData.yyyy_mm)
+      formDataToSend.append('title', formData.title)
       formDataToSend.append('inspection_date', formData.inspection_date)
       formDataToSend.append('summary', formData.summary || '')
       formDataToSend.append('signature_position_x', formData.signature_position_x.toString())
@@ -65,7 +65,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
       setMessage('점검 및 보고서가 생성되었습니다.')
       setFormData({
         tenant_id: tenants[0]?.id || '',
-        yyyy_mm: '',
+        title: '',
         inspection_date: new Date().toISOString().split('T')[0],
         summary: '',
         signature_position_x: 0,
@@ -104,16 +104,16 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
           </select>
         </div>
         <div>
-          <label htmlFor="yyyy_mm" className="block text-sm font-medium text-gray-700">
-            년월 (yyyy_mm 형식)
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+            보고서 제목
           </label>
           <input
-            id="yyyy_mm"
+            id="title"
             type="text"
             required
-            placeholder="2024_01"
-            value={formData.yyyy_mm}
-            onChange={(e) => setFormData({ ...formData, yyyy_mm: e.target.value })}
+            placeholder="예: 2024년 1월 유지보수 보고서"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
         </div>

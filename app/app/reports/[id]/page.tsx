@@ -53,7 +53,7 @@ export default async function ReportDetailPage({
   }
 
   // 고객사 사용자만 서명 가능 (관리자 제외)
-  const canSign = !isOperatorAdmin && tenantUser.role !== 'operator_admin'
+  const canSign = !isOperatorAdmin
 
   return (
     <div className="px-4 py-6 sm:px-0">
