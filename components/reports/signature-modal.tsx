@@ -30,15 +30,28 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId }: Si
     }
   }, [isOpen, signatureType])
 
+  const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect()
+    if ('touches' in e && e.touches.length > 0) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      }
+    } else if ('clientX' in e) {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      }
+    }
+    return { x: 0, y: 0 }
+  }
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     setIsDrawing(true)
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const rect = canvas.getBoundingClientRect()
-    const x = (e as any).touches ? (e as any).touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = (e as any).touches ? (e as any).touches[0].clientY - rect.top : e.clientY - rect.top
-
+    const { x, y } = getCoordinates(e, canvas)
     const ctx = canvas.getContext('2d')
     if (ctx) {
       ctx.beginPath()
@@ -51,10 +64,7 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId }: Si
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const rect = canvas.getBoundingClientRect()
-    const x = (e as any).touches ? (e as any).touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = (e as any).touches ? (e as any).touches[0].clientY - rect.top : e.clientY - rect.top
-
+    const { x, y } = getCoordinates(e, canvas)
     const ctx = canvas.getContext('2d')
     if (ctx) {
       ctx.lineTo(x, y)
