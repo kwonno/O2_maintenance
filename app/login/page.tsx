@@ -1,17 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isMagicLink, setIsMagicLink] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,24 +16,22 @@ export default function LoginPage() {
     setMessage('')
 
     try {
-      if (isMagicLink) {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/app`,
-          },
-        })
-        if (error) throw error
-        setMessage('매직링크가 이메일로 전송되었습니다.')
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (error) throw error
-        router.push('/app')
-        router.refresh()
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '로그인에 실패했습니다.')
       }
+
+      router.push('/app')
+      router.refresh()
     } catch (error: any) {
       setMessage(error.message || '로그인에 실패했습니다.')
     } finally {
@@ -68,33 +63,18 @@ export default function LoginPage() {
             />
           </div>
 
-          {!isMagicLink && (
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                비밀번호
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          )}
-
-          <div className="flex items-center">
-            <input
-              id="magic-link"
-              type="checkbox"
-              checked={isMagicLink}
-              onChange={(e) => setIsMagicLink(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="magic-link" className="ml-2 block text-sm text-gray-900">
-              매직링크로 로그인
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              비밀번호
             </label>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
 
           {message && (

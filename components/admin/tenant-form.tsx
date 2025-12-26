@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+// 주의: Supabase Auth를 사용하지 않으므로 테넌트만 생성합니다.
+// 사용자는 /admin/users에서 별도로 생성하세요.
+
 export default function TenantForm() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,19 +28,8 @@ export default function TenantForm() {
 
       if (tenantError) throw tenantError
 
-      // 현재 사용자를 operator_admin으로 추가
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { error: userError } = await supabase
-          .from('tenant_users')
-          .insert({
-            user_id: user.id,
-            tenant_id: tenant.id,
-            role: 'operator_admin',
-          })
-
-        if (userError) throw userError
-      }
+      // 테넌트 생성 완료
+      // 사용자는 /admin/users에서 별도로 생성하고 테넌트에 연결하세요.
 
       setMessage('테넌트가 생성되었습니다.')
       setName('')

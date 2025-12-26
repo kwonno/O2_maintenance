@@ -1,15 +1,9 @@
-import { createClient } from './supabase/server'
+import { getCurrentUser as getCurrentUserFromSession } from './auth/session'
+import { getTenantUser as getTenantUserFromDB, isOperatorAdmin as isOperatorAdminFromDB } from './auth/tenant'
 import { redirect } from 'next/navigation'
 
 export async function getCurrentUser() {
-  const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  if (error || !user) {
-    return null
-  }
-  
-  return user
+  return await getCurrentUserFromSession()
 }
 
 export async function requireAuth() {
@@ -21,29 +15,10 @@ export async function requireAuth() {
 }
 
 export async function getTenantUser(userId: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('tenant_users')
-    .select('*, tenant:tenants(*)')
-    .eq('user_id', userId)
-    .single()
-  
-  if (error || !data) {
-    return null
-  }
-  
-  return data
+  return await getTenantUserFromDB(userId)
 }
 
 export async function isOperatorAdmin(userId: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('tenant_users')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('role', 'operator_admin')
-    .single()
-  
-  return !error && !!data
+  return await isOperatorAdminFromDB(userId)
 }
 
