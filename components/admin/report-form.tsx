@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 interface Tenant {
@@ -9,7 +8,7 @@ interface Tenant {
   name: string
 }
 
-export default function ReportForm({ tenants }: { tenants: Tenant[] }) {
+export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], onSuccess?: () => void }) {
   const [formData, setFormData] = useState({
     tenant_id: tenants[0]?.id || '',
     yyyy_mm: '',
@@ -20,7 +19,6 @@ export default function ReportForm({ tenants }: { tenants: Tenant[] }) {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,45 +26,33 @@ export default function ReportForm({ tenants }: { tenants: Tenant[] }) {
     setMessage('')
 
     try {
-      // 점검 생성
-      const { data: inspection, error: inspectionError } = await supabase
-        .from('inspections')
-        .insert({
-          tenant_id: formData.tenant_id,
-          yyyy_mm: formData.yyyy_mm,
-          inspection_date: formData.inspection_date,
-          performed_by: (await supabase.auth.getUser()).data.user?.id,
-        })
-        .select()
-        .single()
+      // 현재 사용자 정보 가져오기
+      const userRes = await fetch('/api/auth/check')
+      const userData = await userRes.json()
+      
+      if (!userData.authenticated || !userData.user) {
+        throw new Error('인증이 필요합니다.')
+      }
 
-      if (inspectionError) throw inspectionError
-
-      // 파일 업로드
+      // API를 통해 점검 및 보고서 생성
+      const formDataToSend = new FormData()
+      formDataToSend.append('tenant_id', formData.tenant_id)
+      formDataToSend.append('yyyy_mm', formData.yyyy_mm)
+      formDataToSend.append('inspection_date', formData.inspection_date)
+      formDataToSend.append('summary', formData.summary || '')
       if (file) {
-        const reportId = crypto.randomUUID()
-        const filePath = `tenant/${formData.tenant_id}/inspections/${formData.yyyy_mm}/${reportId}.pdf`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('reports')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          })
+        formDataToSend.append('file', file)
+      }
 
-        if (uploadError) throw uploadError
+      const response = await fetch('/api/admin/reports', {
+        method: 'POST',
+        body: formDataToSend,
+      })
 
-        // 보고서 레코드 생성
-        const { error: reportError } = await supabase
-          .from('inspection_reports')
-          .insert({
-            tenant_id: formData.tenant_id,
-            inspection_id: inspection.id,
-            file_path: filePath,
-            summary: formData.summary || null,
-          })
+      const data = await response.json()
 
-        if (reportError) throw reportError
+      if (!response.ok) {
+        throw new Error(data.error || '보고서 생성에 실패했습니다.')
       }
 
       setMessage('점검 및 보고서가 생성되었습니다.')
@@ -78,6 +64,9 @@ export default function ReportForm({ tenants }: { tenants: Tenant[] }) {
       })
       setFile(null)
       router.refresh()
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 500)
+      }
     } catch (error: any) {
       setMessage(error.message || '보고서 생성에 실패했습니다.')
     } finally {

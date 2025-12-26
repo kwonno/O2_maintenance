@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 interface Tenant {
@@ -9,7 +8,7 @@ interface Tenant {
   name: string
 }
 
-export default function AssetForm({ tenants, asset }: { tenants: Tenant[], asset?: any }) {
+export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tenant[], asset?: any, onSuccess?: () => void }) {
   const [formData, setFormData] = useState({
     tenant_id: asset?.tenant_id || tenants[0]?.id || '',
     vendor: asset?.vendor || '',
@@ -24,7 +23,6 @@ export default function AssetForm({ tenants, asset }: { tenants: Tenant[], asset
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,19 +31,34 @@ export default function AssetForm({ tenants, asset }: { tenants: Tenant[], asset
 
     try {
       if (asset) {
-        const { error } = await supabase
-          .from('assets')
-          .update(formData)
-          .eq('id', asset.id)
+        // 수정은 기존 방식 유지 (페이지에서 처리)
+        const response = await fetch(`/api/admin/assets/${asset.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
 
-        if (error) throw error
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || '자산 수정에 실패했습니다.')
+        }
         setMessage('자산이 수정되었습니다.')
       } else {
-        const { error } = await supabase
-          .from('assets')
-          .insert(formData)
+        // 생성은 API 사용
+        const response = await fetch('/api/admin/assets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
 
-        if (error) throw error
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || '자산 생성에 실패했습니다.')
+        }
         setMessage('자산이 생성되었습니다.')
         setFormData({
           tenant_id: tenants[0]?.id || '',
@@ -58,6 +71,9 @@ export default function AssetForm({ tenants, asset }: { tenants: Tenant[], asset
           eos_date: '',
           eol_date: '',
         })
+        if (onSuccess) {
+          setTimeout(() => onSuccess(), 500)
+        }
       }
       router.refresh()
     } catch (error: any) {

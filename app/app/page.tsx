@@ -76,56 +76,56 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8">
-        <div className="group relative bg-gradient-to-br from-blue-500 to-blue-600 overflow-hidden shadow-xl rounded-xl card-hover">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+        <div className="group relative bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 overflow-hidden shadow-lg rounded-xl card-hover">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200 opacity-30 rounded-full -mr-16 -mt-16"></div>
           <div className="p-6 relative">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 bg-blue-200 rounded-lg">
+                <svg className="w-6 h-6 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
             </div>
-            <div className="text-4xl font-bold text-white mb-2">{totalAssets || 0}</div>
-            <p className="text-blue-100 text-sm font-medium">전체 자산</p>
+            <div className="text-4xl font-bold text-blue-700 mb-2">{totalAssets || 0}</div>
+            <p className="text-blue-600 text-sm font-medium">전체 자산</p>
           </div>
         </div>
 
-        <div className="group relative bg-gradient-to-br from-orange-500 to-orange-600 overflow-hidden shadow-xl rounded-xl card-hover">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+        <div className="group relative bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 overflow-hidden shadow-lg rounded-xl card-hover">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200 opacity-30 rounded-full -mr-16 -mt-16"></div>
           <div className="p-6 relative">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 bg-orange-200 rounded-lg">
+                <svg className="w-6 h-6 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <div className="text-4xl font-bold text-white mb-2">{expiringSoon}</div>
-            <p className="text-orange-100 text-sm font-medium">만료 임박 (30일)</p>
+            <div className="text-4xl font-bold text-orange-700 mb-2">{expiringSoon}</div>
+            <p className="text-orange-600 text-sm font-medium">만료 임박 (30일)</p>
           </div>
         </div>
 
-        <div className="group relative bg-gradient-to-br from-red-500 to-red-600 overflow-hidden shadow-xl rounded-xl card-hover">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+        <div className="group relative bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 overflow-hidden shadow-lg rounded-xl card-hover">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-200 opacity-30 rounded-full -mr-16 -mt-16"></div>
           <div className="p-6 relative">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 bg-red-200 rounded-lg">
+                <svg className="w-6 h-6 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
             </div>
-            <div className="text-4xl font-bold text-white mb-2">{eosSoon}</div>
-            <p className="text-red-100 text-sm font-medium">EOS 임박 (30일)</p>
+            <div className="text-4xl font-bold text-red-700 mb-2">{eosSoon}</div>
+            <p className="text-red-600 text-sm font-medium">EOS 임박 (30일)</p>
           </div>
         </div>
       </div>
 
       <div className="bg-white shadow-xl rounded-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
-          <h2 className="text-xl font-semibold text-white flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-gradient-to-r from-blue-100 to-purple-100 border-b-2 border-blue-200 px-6 py-4">
+          <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             최근 보고서

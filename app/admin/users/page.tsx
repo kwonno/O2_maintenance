@@ -1,76 +1,138 @@
-import { requireAuth, isOperatorAdmin } from '@/lib/auth'
-import { redirect } from 'next/navigation'
-import UserForm from '@/components/admin/user-form'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import UserModal from '@/components/admin/user-modal'
 
-export default async function AdminUsersPage() {
-  const user = await requireAuth()
-  const isAdmin = await isOperatorAdmin(user.id)
+interface User {
+  id: string
+  email: string
+  name: string | null
+  created_at: string
+  tenant?: { name: string }
+  role?: string
+}
 
-  if (!isAdmin) {
-    redirect('/app')
+interface Tenant {
+  id: string
+  name: string
+}
+
+export default function AdminUsersPage() {
+  const router = useRouter()
+  const [users, setUsers] = useState<User[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterTenant, setFilterTenant] = useState('')
+  const [filterRole, setFilterRole] = useState('')
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const [usersRes, tenantsRes] = await Promise.all([
+        fetch('/api/admin/users/list'),
+        fetch('/api/admin/tenants/list'),
+      ])
+
+      if (usersRes.ok) {
+        const usersData = await usersRes.json()
+        setUsers(usersData.users || [])
+      }
+
+      if (tenantsRes.ok) {
+        const tenantsData = await tenantsRes.json()
+        setTenants(tenantsData.tenants || [])
+      }
+    } catch (error) {
+      console.error('데이터 로딩 실패:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // 서비스 역할 키를 사용하여 모든 데이터 조회
-  const supabaseAdmin = createAdminClient()
-  const { data: users } = await supabaseAdmin
-    .from('users')
-    .select('id, email, name, created_at')
-    .order('created_at', { ascending: false })
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch = 
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    const matchesTenant = !filterTenant || u.tenant?.name === filterTenant
+    const matchesRole = !filterRole || u.role === filterRole
+    return matchesSearch && matchesTenant && matchesRole
+  })
 
-  // 각 사용자의 tenant_users 정보도 조회
-  const usersWithTenants = await Promise.all(
-    (users || []).map(async (u: any) => {
-      const { data: tenantUser } = await supabaseAdmin
-        .from('tenant_users')
-        .select('tenant:tenants(name), role')
-        .eq('user_id', u.id)
-        .maybeSingle()
-      return {
-        ...u,
-        tenant: tenantUser?.tenant,
-        role: tenantUser?.role,
-      }
-    })
-  )
-
-  // tenants 조회도 서비스 역할 키 사용
-  const { data: tenants } = await supabaseAdmin
-    .from('tenants')
-    .select('id, name')
-    .order('name')
+  if (loading) {
+    return <div className="px-4 py-6 sm:px-0">로딩 중...</div>
+  }
 
   return (
     <div className="px-4 py-6 sm:px-0">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">사용자 관리</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          사용자 생성
+        </button>
       </div>
 
-      <div className="bg-white shadow-xl rounded-xl mb-6 p-6 border border-gray-100">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            새 사용자 생성
-          </h2>
-          <p className="text-sm text-gray-500">새로운 사용자 계정을 생성합니다</p>
-        </div>
-        <UserForm tenants={tenants || []} />
-      </div>
-
-      <div className="bg-white shadow-xl rounded-xl overflow-hidden">
+      <div className="bg-white shadow-xl rounded-xl overflow-hidden mb-6">
         <div className="bg-gradient-to-r from-green-500 to-teal-600 px-6 py-4">
-          <h2 className="text-xl font-semibold text-white flex items-center">
+          <h2 className="text-xl font-semibold text-white flex items-center mb-4">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
             사용자 목록
           </h2>
+          
+          {/* 검색 및 필터 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <input
+                type="text"
+                placeholder="이메일 또는 이름 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-white border-opacity-30 rounded-lg bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-70 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+              />
+            </div>
+            <div>
+              <select
+                value={filterTenant}
+                onChange={(e) => setFilterTenant(e.target.value)}
+                className="w-full px-4 py-2 border border-white border-opacity-30 rounded-lg bg-white bg-opacity-20 text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+              >
+                <option value="">모든 고객사</option>
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.name} className="text-gray-900">
+                    {tenant.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="w-full px-4 py-2 border border-white border-opacity-30 rounded-lg bg-white bg-opacity-20 text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+              >
+                <option value="">모든 역할</option>
+                <option value="customer" className="text-gray-900">고객</option>
+                <option value="operator_admin" className="text-gray-900">운영 관리자</option>
+              </select>
+            </div>
+          </div>
         </div>
-        {usersWithTenants && usersWithTenants.length > 0 ? (
+
+        {filteredUsers.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -96,7 +158,7 @@ export default async function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {usersWithTenants.map((u: any) => (
+                {filteredUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -151,7 +213,15 @@ export default async function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      <UserModal 
+        tenants={tenants} 
+        isOpen={isModalOpen} 
+        onClose={() => {
+          setIsModalOpen(false)
+          fetchData()
+        }} 
+      />
     </div>
   )
 }
-

@@ -8,7 +8,7 @@ interface Tenant {
   name: string
 }
 
-export default function UserForm({ tenants }: { tenants: Tenant[] }) {
+export default function UserForm({ tenants, onSuccess }: { tenants: Tenant[], onSuccess?: () => void }) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -49,6 +49,9 @@ export default function UserForm({ tenants }: { tenants: Tenant[] }) {
         role: 'customer',
       })
       router.refresh()
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 500)
+      }
     } catch (error: any) {
       setMessage(error.message || '사용자 생성에 실패했습니다.')
     } finally {
