@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, isOperatorAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function POST(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const user = await requireAuth()
     const isAdmin = await isOperatorAdmin(user.id)
@@ -30,17 +33,10 @@ export async function POST(request: NextRequest) {
       eol_date 
     } = body
 
-    if (!tenant_id) {
-      return NextResponse.json(
-        { error: '고객사를 선택해주세요.' },
-        { status: 400 }
-      )
-    }
-
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('assets')
-      .insert({
+      .update({
         tenant_id,
         vendor_id: vendor_id || null,
         vendor: vendor || null, // 호환성 유지
@@ -53,13 +49,15 @@ export async function POST(request: NextRequest) {
         status: status || 'active',
         eos_date: eos_date || null,
         eol_date: eol_date || null,
+        updated_at: new Date().toISOString(),
       })
+      .eq('id', params.id)
       .select()
       .single()
 
     if (error) {
       return NextResponse.json(
-        { error: error.message || '자산 생성에 실패했습니다.' },
+        { error: error.message || '자산 수정에 실패했습니다.' },
         { status: 500 }
       )
     }
@@ -67,7 +65,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, asset: data })
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || '자산 생성에 실패했습니다.' },
+      { error: error.message || '자산 수정에 실패했습니다.' },
       { status: 500 }
     )
   }

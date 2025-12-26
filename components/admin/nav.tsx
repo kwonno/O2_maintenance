@@ -20,6 +20,7 @@ export default function AdminNav() {
     { href: '/admin/users', label: '사용자' },
     { href: '/admin/assets', label: '자산' },
     { href: '/admin/reports', label: '보고서' },
+    { href: '/admin/vendors', label: '제조사/모델/위치' },
   ]
 
   return (

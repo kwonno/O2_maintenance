@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Tenant {
@@ -11,18 +11,69 @@ interface Tenant {
 export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tenant[], asset?: any, onSuccess?: () => void }) {
   const [formData, setFormData] = useState({
     tenant_id: asset?.tenant_id || tenants[0]?.id || '',
-    vendor: asset?.vendor || '',
-    model: asset?.model || '',
+    vendor_id: asset?.vendor_id || '',
+    vendor: asset?.vendor || '', // 기존 데이터 호환성
+    model_id: asset?.model_id || '',
+    model: asset?.model || '', // 기존 데이터 호환성
+    location_id: asset?.location_id || '',
+    location: asset?.location || '', // 기존 데이터 호환성
     serial: asset?.serial || '',
     alias: asset?.alias || '',
-    location: asset?.location || '',
     status: asset?.status || 'active',
     eos_date: asset?.eos_date || '',
     eol_date: asset?.eol_date || '',
   })
+  const [vendors, setVendors] = useState<any[]>([])
+  const [models, setModels] = useState<any[]>([])
+  const [locations, setLocations] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    fetchOptions()
+  }, [])
+
+  useEffect(() => {
+    if (formData.vendor_id) {
+      fetchModels(formData.vendor_id)
+    } else {
+      setModels([])
+    }
+  }, [formData.vendor_id])
+
+  const fetchOptions = async () => {
+    try {
+      const [vendorsRes, locationsRes] = await Promise.all([
+        fetch('/api/admin/vendors'),
+        fetch('/api/admin/locations'),
+      ])
+
+      if (vendorsRes.ok) {
+        const data = await vendorsRes.json()
+        setVendors(data.vendors || [])
+      }
+
+      if (locationsRes.ok) {
+        const data = await locationsRes.json()
+        setLocations(data.locations || [])
+      }
+    } catch (error) {
+      console.error('옵션 로딩 실패:', error)
+    }
+  }
+
+  const fetchModels = async (vendorId: string) => {
+    try {
+      const res = await fetch(`/api/admin/vendors/models?vendor_id=${vendorId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setModels(data.models || [])
+      }
+    } catch (error) {
+      console.error('모델 로딩 실패:', error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,12 +83,19 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
     try {
       if (asset) {
         // 수정은 기존 방식 유지 (페이지에서 처리)
+        // vendor_id, model_id, location_id를 사용하되, 기존 데이터 호환성을 위해 vendor, model, location도 포함
+        const submitData = {
+          ...formData,
+          vendor: vendors.find(v => v.id === formData.vendor_id)?.name || formData.vendor,
+          model: models.find(m => m.id === formData.model_id)?.name || formData.model,
+          location: locations.find(l => l.id === formData.location_id)?.name || formData.location,
+        }
         const response = await fetch(`/api/admin/assets/${asset.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         })
 
         const data = await response.json()
@@ -47,12 +105,19 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
         setMessage('자산이 수정되었습니다.')
       } else {
         // 생성은 API 사용
+        // vendor_id, model_id, location_id를 사용하되, 기존 데이터 호환성을 위해 vendor, model, location도 포함
+        const submitData = {
+          ...formData,
+          vendor: vendors.find(v => v.id === formData.vendor_id)?.name || '',
+          model: models.find(m => m.id === formData.model_id)?.name || '',
+          location: locations.find(l => l.id === formData.location_id)?.name || '',
+        }
         const response = await fetch('/api/admin/assets', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         })
 
         const data = await response.json()
@@ -62,11 +127,14 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
         setMessage('자산이 생성되었습니다.')
         setFormData({
           tenant_id: tenants[0]?.id || '',
+          vendor_id: '',
           vendor: '',
+          model_id: '',
           model: '',
+          location_id: '',
+          location: '',
           serial: '',
           alias: '',
-          location: '',
           status: 'active',
           eos_date: '',
           eol_date: '',
@@ -119,28 +187,43 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
           </select>
         </div>
         <div>
-          <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="vendor_id" className="block text-sm font-medium text-gray-700">
             제조사
           </label>
-          <input
-            id="vendor"
-            type="text"
-            value={formData.vendor}
-            onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
+          <select
+            id="vendor_id"
+            value={formData.vendor_id}
+            onChange={(e) => {
+              setFormData({ 
+                ...formData, 
+                vendor_id: e.target.value,
+                model_id: '', // 제조사 변경 시 모델 초기화
+              })
+            }}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
+            <option value="">선택하세요</option>
+            {vendors.map(vendor => (
+              <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+            ))}
+          </select>
         </div>
         <div>
-          <label htmlFor="model" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="model_id" className="block text-sm font-medium text-gray-700">
             모델
           </label>
-          <input
-            id="model"
-            type="text"
-            value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+          <select
+            id="model_id"
+            value={formData.model_id}
+            onChange={(e) => setFormData({ ...formData, model_id: e.target.value })}
+            disabled={!formData.vendor_id}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">{formData.vendor_id ? '선택하세요' : '제조사를 먼저 선택하세요'}</option>
+            {models.map(model => (
+              <option key={model.id} value={model.id}>{model.name}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label htmlFor="serial" className="block text-sm font-medium text-gray-700">
@@ -167,16 +250,20 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
           />
         </div>
         <div>
-          <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="location_id" className="block text-sm font-medium text-gray-700">
             위치
           </label>
-          <input
-            id="location"
-            type="text"
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+          <select
+            id="location_id"
+            value={formData.location_id}
+            onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
+            <option value="">선택하세요</option>
+            {locations.map(location => (
+              <option key={location.id} value={location.id}>{location.name}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label htmlFor="eos_date" className="block text-sm font-medium text-gray-700">
