@@ -38,22 +38,46 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
+    
+    // 삽입할 데이터 준비 (null 값은 제외)
+    const insertData: any = {
+      tenant_id,
+      status: status || 'active',
+    }
+
+    // vendor_id가 있으면 추가, 없으면 vendor 텍스트 사용
+    if (vendor_id) {
+      insertData.vendor_id = vendor_id
+    }
+    if (vendor) {
+      insertData.vendor = vendor
+    }
+
+    // model_id가 있으면 추가, 없으면 model 텍스트 사용
+    if (model_id) {
+      insertData.model_id = model_id
+    }
+    if (model) {
+      insertData.model = model
+    }
+
+    // location_id가 있으면 추가, 없으면 location 텍스트 사용
+    if (location_id) {
+      insertData.location_id = location_id
+    }
+    if (location) {
+      insertData.location = location
+    }
+
+    // 나머지 필드들
+    if (serial) insertData.serial = serial
+    if (alias) insertData.alias = alias
+    if (eos_date) insertData.eos_date = eos_date
+    if (eol_date) insertData.eol_date = eol_date
+
     const { data, error } = await supabase
       .from('assets')
-      .insert({
-        tenant_id,
-        vendor_id: vendor_id || null,
-        vendor: vendor || null, // 호환성 유지
-        model_id: model_id || null,
-        model: model || null, // 호환성 유지
-        location_id: location_id || null,
-        location: location || null, // 호환성 유지
-        serial: serial || null,
-        alias: alias || null,
-        status: status || 'active',
-        eos_date: eos_date || null,
-        eol_date: eol_date || null,
-      })
+      .insert(insertData)
       .select()
       .single()
 

@@ -34,23 +34,59 @@ export async function PUT(
     } = body
 
     const supabase = createAdminClient()
+    
+    // 업데이트할 데이터 준비
+    const updateData: any = {
+      tenant_id,
+      status: status || 'active',
+      updated_at: new Date().toISOString(),
+    }
+
+    // vendor_id가 있으면 추가, 없으면 vendor 텍스트 사용
+    if (vendor_id) {
+      updateData.vendor_id = vendor_id
+    } else {
+      updateData.vendor_id = null
+    }
+    if (vendor) {
+      updateData.vendor = vendor
+    } else {
+      updateData.vendor = null
+    }
+
+    // model_id가 있으면 추가, 없으면 model 텍스트 사용
+    if (model_id) {
+      updateData.model_id = model_id
+    } else {
+      updateData.model_id = null
+    }
+    if (model) {
+      updateData.model = model
+    } else {
+      updateData.model = null
+    }
+
+    // location_id가 있으면 추가, 없으면 location 텍스트 사용
+    if (location_id) {
+      updateData.location_id = location_id
+    } else {
+      updateData.location_id = null
+    }
+    if (location) {
+      updateData.location = location
+    } else {
+      updateData.location = null
+    }
+
+    // 나머지 필드들
+    updateData.serial = serial || null
+    updateData.alias = alias || null
+    updateData.eos_date = eos_date || null
+    updateData.eol_date = eol_date || null
+
     const { data, error } = await supabase
       .from('assets')
-      .update({
-        tenant_id,
-        vendor_id: vendor_id || null,
-        vendor: vendor || null, // 호환성 유지
-        model_id: model_id || null,
-        model: model || null, // 호환성 유지
-        location_id: location_id || null,
-        location: location || null, // 호환성 유지
-        serial: serial || null,
-        alias: alias || null,
-        status: status || 'active',
-        eos_date: eos_date || null,
-        eol_date: eol_date || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', params.id)
       .select()
       .single()

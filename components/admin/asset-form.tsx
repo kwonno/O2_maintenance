@@ -84,12 +84,44 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
       if (asset) {
         // 수정은 기존 방식 유지 (페이지에서 처리)
         // vendor_id, model_id, location_id를 사용하되, 기존 데이터 호환성을 위해 vendor, model, location도 포함
-        const submitData = {
-          ...formData,
-          vendor: vendors.find(v => v.id === formData.vendor_id)?.name || formData.vendor,
-          model: models.find(m => m.id === formData.model_id)?.name || formData.model,
-          location: locations.find(l => l.id === formData.location_id)?.name || formData.location,
+        const submitData: any = {
+          tenant_id: formData.tenant_id,
+          status: formData.status,
         }
+
+        // vendor_id가 있으면 추가
+        if (formData.vendor_id) {
+          submitData.vendor_id = formData.vendor_id
+          submitData.vendor = vendors.find(v => v.id === formData.vendor_id)?.name || formData.vendor
+        } else {
+          submitData.vendor_id = null
+          submitData.vendor = formData.vendor || null
+        }
+
+        // model_id가 있으면 추가
+        if (formData.model_id) {
+          submitData.model_id = formData.model_id
+          submitData.model = models.find(m => m.id === formData.model_id)?.name || formData.model
+        } else {
+          submitData.model_id = null
+          submitData.model = formData.model || null
+        }
+
+        // location_id가 있으면 추가
+        if (formData.location_id) {
+          submitData.location_id = formData.location_id
+          submitData.location = locations.find(l => l.id === formData.location_id)?.name || formData.location
+        } else {
+          submitData.location_id = null
+          submitData.location = formData.location || null
+        }
+
+        // 나머지 필드들
+        submitData.serial = formData.serial || null
+        submitData.alias = formData.alias || null
+        submitData.eos_date = formData.eos_date || null
+        submitData.eol_date = formData.eol_date || null
+
         const response = await fetch(`/api/admin/assets/${asset.id}`, {
           method: 'PUT',
           headers: {
@@ -267,7 +299,7 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
         </div>
         <div>
           <label htmlFor="eos_date" className="block text-sm font-medium text-gray-700">
-            EOS 날짜
+            EOS 날짜 (선택사항)
           </label>
           <input
             id="eos_date"
@@ -279,7 +311,7 @@ export default function AssetForm({ tenants, asset, onSuccess }: { tenants: Tena
         </div>
         <div>
           <label htmlFor="eol_date" className="block text-sm font-medium text-gray-700">
-            EOL 날짜
+            EOL 날짜 (선택사항)
           </label>
           <input
             id="eol_date"
