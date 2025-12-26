@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
 export default async function AssetDetailPage({
@@ -78,12 +78,66 @@ export default async function AssetDetailPage({
         </Link>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-6 shadow-sm">
         <div className="px-4 py-5 sm:p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl font-bold text-[#1A1A4D] mb-6">
             {asset.alias || asset.serial || '이름 없음'}
           </h1>
 
+          {/* 유지보수 계약 정보 (가장 중요 - 상단에 표시) */}
+          {contractItems && contractItems.length > 0 && (
+            <div className="mb-6 p-4 bg-[#F3F3FB] rounded-lg border-l-4 border-[#F12711]">
+              <h2 className="text-sm font-semibold text-[#1A1A4D] mb-3">유지보수 계약</h2>
+              <div className="space-y-3">
+                {contractItems.map((item: any) => {
+                  const contract = item.contract
+                  const endDate = new Date(contract.end_date)
+                  const today = new Date()
+                  const daysLeft = differenceInDays(endDate, today)
+                  const isExpired = endDate < today
+                  const isExpiringSoon = daysLeft >= 0 && daysLeft <= 30
+
+                  return (
+                    <div key={item.id} className="bg-white p-3 rounded border border-gray-200">
+                      <Link href={`/app/contracts/${item.contract_id}`} className="block">
+                        <p className="font-medium text-[#1A1A4D] mb-1">{contract.name}</p>
+                        <div className="flex items-center space-x-2 flex-wrap">
+                          <span className="text-sm text-gray-700">
+                            {format(new Date(contract.start_date), 'yyyy-MM-dd', { locale: ko })} ~
+                            {format(endDate, 'yyyy-MM-dd', { locale: ko })}
+                          </span>
+                          {isExpired ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                              만료됨
+                            </span>
+                          ) : isExpiringSoon ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                              D-{daysLeft}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              유효
+                            </span>
+                          )}
+                          {item.coverage_tier && (
+                            <span className="text-xs text-gray-500">커버리지: {item.coverage_tier}</span>
+                          )}
+                        </div>
+                      </Link>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {(!contractItems || contractItems.length === 0) && (
+            <div className="mb-6 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+              <p className="text-sm text-yellow-800 font-medium">유지보수 계약이 없습니다.</p>
+            </div>
+          )}
+
+          {/* 기본 정보 */}
           <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
             <div>
               <dt className="text-sm font-medium text-gray-500">제조사</dt>
@@ -132,30 +186,6 @@ export default async function AssetDetailPage({
           </dl>
         </div>
       </div>
-
-      {contractItems && contractItems.length > 0 && (
-        <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
-          <div className="px-4 py-5 sm:p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">연결된 계약</h2>
-            <div className="space-y-4">
-              {contractItems.map((item: any) => (
-                <div key={item.id} className="border-l-4 border-blue-500 pl-4">
-                  <Link href={`/app/contracts/${item.contract_id}`} className="text-blue-600 hover:text-blue-800">
-                    <p className="font-medium">{item.contract?.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {item.contract?.start_date && format(new Date(item.contract.start_date), 'yyyy-MM-dd', { locale: ko })} ~
-                      {item.contract?.end_date && format(new Date(item.contract.end_date), 'yyyy-MM-dd', { locale: ko })}
-                    </p>
-                    {item.coverage_tier && (
-                      <p className="text-sm text-gray-500">커버리지: {item.coverage_tier}</p>
-                    )}
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {reports && reports.length > 0 && (
         <div className="bg-white shadow rounded-lg overflow-hidden">

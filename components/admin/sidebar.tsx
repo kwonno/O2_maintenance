@@ -20,6 +20,7 @@ export default function AdminSidebar() {
     { href: '/admin', label: '대시보드', icon: '📊' },
     { href: '/admin/tenants', label: '고객사', icon: '🏢' },
     { href: '/admin/users', label: '사용자', icon: '👥' },
+    { href: '/admin/contracts', label: '계약', icon: '📄' },
     { href: '/admin/assets', label: '자산', icon: '💻' },
     { href: '/admin/reports', label: '보고서', icon: '📋' },
     { href: '/admin/vendors', label: '제조사/모델/위치', icon: '🔧' },

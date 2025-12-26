@@ -2,6 +2,8 @@ import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import Link from 'next/link'
+import { format, differenceInDays } from 'date-fns'
+import { ko } from 'date-fns/locale'
 
 export default async function AssetsPage({
   searchParams,
@@ -43,11 +45,31 @@ export default async function AssetsPage({
 
   const { data: assets } = await query
 
+  // 각 자산에 대한 계약 정보 조회
+  const assetsWithContracts = await Promise.all(
+    (assets || []).map(async (asset) => {
+      const { data: contractItems } = await supabase
+        .from('contract_items')
+        .select(`
+          *,
+          contract:contracts(*)
+        `)
+        .eq('asset_id', asset.id)
+        .order('contract(end_date)', { ascending: false })
+        .limit(1) // 가장 최근 계약만
+
+      return {
+        ...asset,
+        activeContract: contractItems && contractItems.length > 0 ? contractItems[0] : null,
+      }
+    })
+  )
+
   const today = new Date()
   const thirtyDaysLater = new Date(today)
   thirtyDaysLater.setDate(today.getDate() + 30)
 
-  let filteredAssets = assets || []
+  let filteredAssets = assetsWithContracts || []
 
   if (searchParams.expiring === 'true') {
     filteredAssets = filteredAssets.filter(asset => {
@@ -133,50 +155,89 @@ export default async function AssetsPage({
         </form>
       </div>
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
         <ul className="divide-y divide-gray-200">
-          {filteredAssets.map((asset) => (
-            <li key={asset.id}>
-              <Link href={`/app/assets/${asset.id}`} className="block hover:bg-gray-50">
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {asset.alias || asset.serial || '이름 없음'}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {asset.vendor} {asset.model} {asset.serial && `(${asset.serial})`}
-                        </p>
-                        {asset.location && (
-                          <p className="text-sm text-gray-500">위치: {asset.location}</p>
+          {filteredAssets.map((asset: any) => {
+            const contract = asset.activeContract?.contract
+            const contractEndDate = contract ? new Date(contract.end_date) : null
+            const contractDaysLeft = contractEndDate ? differenceInDays(contractEndDate, today) : null
+            const isContractExpired = contractEndDate ? contractEndDate < today : false
+            const isContractExpiringSoon = contractDaysLeft !== null && contractDaysLeft >= 0 && contractDaysLeft <= 30
+
+            return (
+              <li key={asset.id}>
+                <Link href={`/app/assets/${asset.id}`} className="block hover:bg-[#F3F3FB] transition-colors">
+                  <div className="px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-[#1A1A4D]">
+                              {asset.alias || asset.serial || '이름 없음'}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {asset.vendor} {asset.model} {asset.serial && `(${asset.serial})`}
+                            </p>
+                            {asset.location && (
+                              <p className="text-sm text-gray-500">위치: {asset.location}</p>
+                            )}
+                          </div>
+                        </div>
+                        {/* 유지보수 계약 기간 (가장 중요) */}
+                        {contract ? (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-semibold text-[#1A1A4D]">유지보수 계약:</span>
+                              <span className="text-xs text-gray-700">
+                                {format(new Date(contract.start_date), 'yyyy-MM-dd', { locale: ko })} ~
+                                {format(contractEndDate!, 'yyyy-MM-dd', { locale: ko })}
+                              </span>
+                              {isContractExpired ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                  만료됨
+                                </span>
+                              ) : isContractExpiringSoon ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                  D-{contractDaysLeft}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  유효
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <span className="text-xs text-gray-400">유지보수 계약 없음</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end space-y-2 ml-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          asset.status === 'active' ? 'bg-green-100 text-green-800' :
+                          asset.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {asset.status === 'active' ? '활성' : asset.status === 'inactive' ? '비활성' : '폐기'}
+                        </span>
+                        {(asset.eol_date && new Date(asset.eol_date) <= thirtyDaysLater) && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            EOL 임박
+                          </span>
+                        )}
+                        {(asset.eos_date && new Date(asset.eos_date) <= thirtyDaysLater) && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            EOS 임박
+                          </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        asset.status === 'active' ? 'bg-green-100 text-green-800' :
-                        asset.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {asset.status === 'active' ? '활성' : asset.status === 'inactive' ? '비활성' : '폐기'}
-                      </span>
-                      {asset.eol_date && new Date(asset.eol_date) <= thirtyDaysLater && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          만료 임박
-                        </span>
-                      )}
-                      {asset.eos_date && new Date(asset.eos_date) <= thirtyDaysLater && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          EOS 임박
-                        </span>
-                      )}
-                    </div>
                   </div>
-                </div>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       </div>
 
