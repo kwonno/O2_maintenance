@@ -33,24 +33,41 @@ export default async function AdminTenantsPage() {
         <TenantForm />
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-4 py-5 sm:p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">고객사 목록</h2>
+      <div className="bg-white shadow-xl rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4">
+          <h2 className="text-xl font-semibold text-white flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            고객사 목록
+          </h2>
+        </div>
+        <div className="px-6 py-5">
           {tenants && tenants.length > 0 ? (
-            <ul className="divide-y divide-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {tenants.map((tenant) => (
-                <li key={tenant.id} className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{tenant.name}</p>
-                      <p className="text-sm text-gray-500">ID: {tenant.id}</p>
+                <div key={tenant.id} className="group p-5 bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-lg transition-all">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mr-4">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-lg font-semibold text-gray-900 mb-1">{tenant.name}</p>
+                      <p className="text-xs text-gray-500 font-mono">ID: {tenant.id.substring(0, 8)}...</p>
                     </div>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
-            <p className="text-sm text-gray-500">고객사가 없습니다.</p>
+            <div className="text-center py-12">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <p className="mt-4 text-sm text-gray-500">고객사가 없습니다.</p>
+            </div>
           )}
         </div>
       </div>
