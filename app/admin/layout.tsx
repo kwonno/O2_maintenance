@@ -20,7 +20,7 @@ export default async function AdminLayout({
           <div className="flex justify-between h-16">
             <div className="flex">
               <a href="/admin" className="flex items-center px-2 py-2 text-xl font-bold text-gray-900">
-                관리자
+                관리자 대시보드
               </a>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <a href="/admin/tenants" className="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
