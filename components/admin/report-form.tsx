@@ -90,7 +90,7 @@ export default function ReportForm({ tenants }: { tenants: Tenant[] }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="tenant_id" className="block text-sm font-medium text-gray-700">
-            테넌트
+            고객사
           </label>
           <select
             id="tenant_id"

@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   const tenantUserData = await getTenantUserByUserId(user.id)
 
   if (!tenantUserData) {
-    return <div>테넌트 정보를 찾을 수 없습니다.</div>
+    return <div>고객사 정보를 찾을 수 없습니다.</div>
   }
 
   const tenantId = tenantUserData.tenant_id

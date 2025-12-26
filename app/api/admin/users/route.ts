@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     if (tenantUserError) {
       return NextResponse.json(
-        { error: '테넌트 연결에 실패했습니다.' },
+        { error: '고객사 연결에 실패했습니다.' },
         { status: 500 }
       )
     }

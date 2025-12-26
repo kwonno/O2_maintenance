@@ -2,6 +2,8 @@ import { requireAuth, isOperatorAdmin } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import UserForm from '@/components/admin/user-form'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import Link from 'next/link'
 
 export default async function AdminUsersPage() {
   const user = await requireAuth()
@@ -16,6 +18,23 @@ export default async function AdminUsersPage() {
     .from('users')
     .select('id, email, name, created_at')
     .order('created_at', { ascending: false })
+
+  // 각 사용자의 tenant_users 정보도 조회
+  const supabaseAdmin = createAdminClient()
+  const usersWithTenants = await Promise.all(
+    (users || []).map(async (u: any) => {
+      const { data: tenantUser } = await supabaseAdmin
+        .from('tenant_users')
+        .select('tenant:tenants(name), role')
+        .eq('user_id', u.id)
+        .maybeSingle()
+      return {
+        ...u,
+        tenant: tenantUser?.tenant,
+        role: tenantUser?.role,
+      }
+    })
+  )
 
   const { data: tenants } = await supabase
     .from('tenants')
@@ -48,12 +67,21 @@ export default async function AdminUsersPage() {
                       이름
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      고객사
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      역할
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       생성일
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      작업
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((u: any) => (
+                  {usersWithTenants.map((u: any) => (
                     <tr key={u.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {u.email}
@@ -62,7 +90,22 @@ export default async function AdminUsersPage() {
                         {u.name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {u.tenant?.name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          u.role === 'operator_admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {u.role === 'operator_admin' ? '운영 관리자' : '고객'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(u.created_at).toLocaleDateString('ko-KR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Link href={`/admin/users/${u.id}`} className="text-blue-600 hover:text-blue-900">
+                          수정
+                        </Link>
                       </td>
                     </tr>
                   ))}

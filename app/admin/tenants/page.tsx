@@ -20,17 +20,17 @@ export default async function AdminTenantsPage() {
   return (
     <div className="px-4 py-6 sm:px-0">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">테넌트 관리</h1>
+        <h1 className="text-3xl font-bold text-gray-900">고객사 관리</h1>
       </div>
 
       <div className="bg-white shadow rounded-lg mb-6 p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">새 테넌트 생성</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">새 고객사 생성</h2>
         <TenantForm />
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-4 py-5 sm:p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">테넌트 목록</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">고객사 목록</h2>
           {tenants && tenants.length > 0 ? (
             <ul className="divide-y divide-gray-200">
               {tenants.map((tenant) => (
@@ -45,7 +45,7 @@ export default async function AdminTenantsPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-500">테넌트가 없습니다.</p>
+            <p className="text-sm text-gray-500">고객사가 없습니다.</p>
           )}
         </div>
       </div>

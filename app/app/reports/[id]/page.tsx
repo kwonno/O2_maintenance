@@ -18,7 +18,7 @@ export default async function ReportDetailPage({
   const tenantUser = await getTenantUserByUserId(user.id)
 
   if (!tenantUser) {
-    return <div>테넌트 정보를 찾을 수 없습니다.</div>
+    return <div>고객사 정보를 찾을 수 없습니다.</div>
   }
 
   const tenantId = tenantUser.tenant_id

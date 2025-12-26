@@ -23,7 +23,7 @@ export default async function AdminPage() {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">테넌트 관리</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">고객사 관리</dt>
                   <dd className="text-lg font-medium text-gray-900">고객사 관리</dd>
                 </dl>
               </div>
