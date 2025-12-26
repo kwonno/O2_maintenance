@@ -61,6 +61,29 @@ export default function AdminReportsPage() {
     return matchesSearch && matchesTenant
   })
 
+  const handleDeleteReport = async (reportId: string) => {
+    if (!confirm('정말 이 보고서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/reports/${reportId}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '보고서 삭제에 실패했습니다.')
+      }
+
+      alert('보고서가 삭제되었습니다.')
+      fetchData() // 목록 새로고침
+    } catch (error: any) {
+      alert(error.message || '보고서 삭제에 실패했습니다.')
+    }
+  }
+
   if (loading) {
     return <div className="px-4 py-6 sm:px-0">로딩 중...</div>
   }
@@ -131,9 +154,40 @@ export default function AdminReportsPage() {
                         점검일: {inspection.inspection_date}
                       </p>
                       {inspection.reports && inspection.reports.length > 0 && (
-                        <p className="text-sm text-green-600 mt-1">
-                          보고서 {inspection.reports.length}개 업로드됨
-                        </p>
+                        <div className="mt-2">
+                          <p className="text-sm text-green-600 mb-2">
+                            보고서 {inspection.reports.length}개 업로드됨
+                          </p>
+                          <div className="space-y-2">
+                            {inspection.reports.map((report: any) => (
+                              <div key={report.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                <div className="flex-1">
+                                  <p className="text-xs text-gray-700">
+                                    {report.summary || '보고서'} 
+                                    {report.signature_status === 'signed' && (
+                                      <span className="ml-2 text-xs text-green-600">(서명 완료)</span>
+                                    )}
+                                  </p>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <a
+                                    href={`/app/reports/${report.id}`}
+                                    target="_blank"
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    보기
+                                  </a>
+                                  <button
+                                    onClick={() => handleDeleteReport(report.id)}
+                                    className="text-xs text-red-600 hover:text-red-800"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
