@@ -6,9 +6,9 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// PDF.js worker 설정 - 더 안정적인 CDN 사용
+// PDF.js worker 설정 - unpkg CDN 사용 (더 안정적)
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`
 }
 
 // PDF 뷰어 컴포넌트 (PDF.js 사용)
@@ -318,6 +318,18 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
                   </svg>
                   다운로드
                 </a>
+                {signatureStatus === 'signed' && (
+                  <a
+                    href={`/api/reports/${report.id}/signed-file`}
+                    download={`${report.inspection?.yyyy_mm || 'report'}_점검보고서_서명본.${report.file_type || 'pdf'}`}
+                    className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#F12711] hover:bg-[#D6220F]"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    검수파일 다운로드
+                  </a>
+                )}
               </div>
               {report.file_type === 'pdf' ? (
                 <div className="mt-4">
