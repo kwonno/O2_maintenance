@@ -30,6 +30,12 @@ export default async function AdminContractsPage() {
           <h1 className="text-2xl font-bold text-[#1A1A4D] mb-1">계약 관리</h1>
           <p className="text-sm text-gray-600">모든 고객사의 계약을 관리합니다</p>
         </div>
+        <Link
+          href="/admin/contracts/merge"
+          className="px-4 py-2 bg-[#F12711] text-white rounded-lg hover:bg-[#F53C05] transition-colors text-sm"
+        >
+          발주번호별 통합
+        </Link>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
