@@ -18,6 +18,7 @@ export default function FilePreviewWithSignature({
   const [excelHtml, setExcelHtml] = useState<string | null>(null)
   const [fileType, setFileType] = useState<'pdf' | 'xlsx' | 'xls' | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [clickMode, setClickMode] = useState(false) // 클릭 모드 활성화 여부
   const previewRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -50,26 +51,16 @@ export default function FilePreviewWithSignature({
 
   const loadExcelFile = async (file: File) => {
     try {
-      // FileReader를 사용하여 파일 읽기
-      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          if (e.target?.result instanceof ArrayBuffer) {
-            resolve(e.target.result)
-          } else {
-            reject(new Error('파일 읽기 실패'))
-          }
-        }
-        reader.onerror = reject
-        reader.readAsArrayBuffer(file)
-      })
+      // 직접 arrayBuffer로 읽기 (MIME type 문제 회피)
+      const arrayBuffer = await file.arrayBuffer()
       
-      // XLSX 라이브러리로 읽기 (타입 명시)
+      // XLSX 라이브러리로 읽기
       const workbook = XLSX.read(arrayBuffer, { 
         type: 'array',
         cellDates: false,
         cellNF: false,
         cellText: false,
+        dense: false,
       })
       
       // 첫 번째 시트 가져오기
@@ -89,7 +80,49 @@ export default function FilePreviewWithSignature({
       setExcelHtml(html)
     } catch (error: any) {
       console.error('Excel 파일 로드 실패:', error)
-      setExcelHtml(`<div class="p-4"><p class="text-red-600">엑셀 파일을 불러올 수 없습니다: ${error.message || '알 수 없는 오류'}</p></div>`)
+      // 바이너리 문자열 방식으로 재시도
+      try {
+        const data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            if (typeof e.target?.result === 'string') {
+              resolve(e.target.result)
+            } else if (e.target?.result instanceof ArrayBuffer) {
+              const bytes = new Uint8Array(e.target.result)
+              let binary = ''
+              for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i])
+              }
+              resolve(binary)
+            } else {
+              reject(new Error('파일 읽기 실패'))
+            }
+          }
+          reader.onerror = reject
+          reader.readAsBinaryString(file)
+        })
+        
+        const workbook = XLSX.read(data, { 
+          type: 'binary',
+          cellDates: false,
+          cellNF: false,
+          cellText: false,
+        })
+        
+        if (workbook.SheetNames.length === 0) {
+          throw new Error('시트가 없습니다.')
+        }
+        
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        const html = XLSX.utils.sheet_to_html(worksheet, {
+          id: 'excel-preview',
+          editable: false,
+        })
+        setExcelHtml(html)
+      } catch (retryError: any) {
+        setExcelHtml(`<div class="p-4"><p class="text-red-600">엑셀 파일을 불러올 수 없습니다: ${retryError.message || error.message || '알 수 없는 오류'}</p><p class="text-xs text-gray-500 mt-2">파일 형식을 확인해주세요.</p></div>`)
+      }
     }
   }
 
@@ -136,43 +169,64 @@ export default function FilePreviewWithSignature({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-700">페이지 선택:</label>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
               <button
                 type="button"
-                onClick={() => handlePdfPageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                onClick={() => setClickMode(!clickMode)}
+                className={`px-3 py-1 text-sm border rounded ${
+                  clickMode 
+                    ? 'bg-[#F12711] text-white border-[#F12711]' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
               >
-                이전
+                {clickMode ? '✓ 클릭 모드 활성화' : '클릭 모드'}
               </button>
-              <span className="text-sm text-gray-700">
-                페이지 {currentPage}
-              </span>
-              <button
-                type="button"
-                onClick={() => handlePdfPageChange(currentPage + 1)}
-                className="px-3 py-1 text-sm border border-gray-300 rounded"
-              >
-                다음
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handlePdfPageChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                >
+                  이전
+                </button>
+                <span className="text-sm text-gray-700">
+                  페이지 {currentPage}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handlePdfPageChange(currentPage + 1)}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded"
+                >
+                  다음
+                </button>
+              </div>
             </div>
           </div>
+          {clickMode && (
+            <div className="bg-yellow-50 p-2 rounded text-sm text-yellow-800">
+              클릭 모드가 활성화되었습니다. PDF에서 서명할 위치를 클릭하세요.
+            </div>
+          )}
           <div
             ref={previewRef}
-            className="relative border-2 border-gray-300 rounded-lg overflow-hidden"
+            className="relative border-2 border-gray-300 rounded-lg overflow-auto"
             style={{ height: '600px' }}
           >
             <iframe
               ref={iframeRef}
               src={`${previewUrl}#page=${currentPage}`}
-              className="w-full h-full pointer-events-none"
+              className="w-full h-full"
               title="PDF 미리보기"
+              style={{ pointerEvents: clickMode ? 'none' : 'auto' }}
             />
-            {/* 클릭 이벤트를 캡처하기 위한 투명 오버레이 */}
-            <div
-              className="absolute inset-0 cursor-crosshair z-10"
-              onClick={handleClick}
-            />
+            {/* 클릭 모드일 때만 오버레이 표시 */}
+            {clickMode && (
+              <div
+                className="absolute inset-0 cursor-crosshair z-10"
+                onClick={handleClick}
+              />
+            )}
             {currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && (
               <div
                 className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
