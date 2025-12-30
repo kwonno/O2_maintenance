@@ -121,10 +121,14 @@ function PdfViewerWithSignature({
     const clickY = e.clientY - rect.top
 
     // PDF 좌표로 변환
-    // viewport는 이미 scale이 적용된 크기이므로, 클릭 좌표를 viewport 좌표로 변환
-    const { viewport } = pageViewport
-    const pdfX = (clickX / canvas.width) * viewport.width
-    const pdfY = viewport.height - ((clickY / canvas.height) * viewport.height) // Y 좌표 반전 (PDF 좌표계는 하단이 0)
+    // viewport는 이미 scale이 적용된 크기이고, canvas 크기와 동일함
+    const { viewport, page } = pageViewport
+    const pageSize = page.view
+    
+    // 클릭 좌표를 PDF 좌표로 변환 (viewport는 scale이 적용된 크기)
+    const pdfX = (clickX / viewport.width) * pageSize.width
+    // Y 좌표는 PDF 좌표계(하단이 0)로 변환하여 저장
+    const pdfY = pageSize.height - ((clickY / viewport.height) * pageSize.height)
 
     onPositionClick({
       x: Math.round(pdfX),
@@ -188,8 +192,8 @@ function PdfViewerWithSignature({
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  left: `${(position.x / pageViewport.viewport.width) * canvasRef.current.width}px`,
-                  top: `${((pageViewport.viewport.height - position.y) / pageViewport.viewport.height) * canvasRef.current.height}px`, // Y 좌표 반전
+                  left: `${(position.x / pageViewport.page.view.width) * canvasRef.current.width}px`,
+                  top: `${((pageViewport.page.view.height - position.y) / pageViewport.page.view.height) * canvasRef.current.height}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
                   transform: 'translate(-50%, -50%)',
                 }}
               >

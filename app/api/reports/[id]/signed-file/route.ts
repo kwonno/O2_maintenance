@@ -69,6 +69,7 @@ export async function GET(
       
       if (report.signature_position && report.signature_position.page > 0 && report.signature_position.page <= pages.length) {
         const page = pages[report.signature_position.page - 1]
+        const pageHeight = page.getHeight()
         
         // 서명 이미지 추가
         // signature_data는 base64 문자열이거나 data URL일 수 있음
@@ -79,8 +80,12 @@ export async function GET(
         const signatureImage = await pdfDoc.embedPng(Buffer.from(signatureImageData, 'base64'))
         const { width, height } = signatureImage.scale(0.3) // 서명 크기 조정
         
+        // PDF 좌표계 변환
+        // 저장된 좌표는 PDF 좌표계(하단이 0)로 저장되어 있음
         const x = report.signature_position.x || 0
-        const y = report.signature_position.y || 0 // 이미 PDF 좌표계로 저장되어 있음
+        // Y 좌표는 PDF 좌표계로 저장되어 있으므로 그대로 사용 (하단이 0)
+        // 서명 이미지의 하단이 클릭한 위치에 오도록 조정
+        const y = (report.signature_position.y || 0) - height
         
         page.drawImage(signatureImage, {
           x: x,
@@ -89,31 +94,74 @@ export async function GET(
           height: height,
         })
 
+        // 텍스트 위치에 이름 추가 (한글 지원을 위해 이미지로 변환)
+        const drawTextAsImage = async (text: string, xPos: number, yPos: number, fontSize: number) => {
+          try {
+            // Node.js 환경에서 canvas를 사용하여 텍스트를 이미지로 변환
+            const { createCanvas } = await import('canvas')
+            const canvas = createCanvas(200, 50)
+            const ctx = canvas.getContext('2d')
+            
+            ctx.fillStyle = 'black'
+            ctx.font = `${fontSize}px Arial`
+            ctx.fillText(text, 0, fontSize)
+            
+            const imageBytes = canvas.toBuffer('image/png')
+            const textImage = await pdfDoc.embedPng(imageBytes)
+            const textDims = textImage.scale(0.5)
+            
+            // Y 좌표는 PDF 좌표계(하단이 0)로 저장되어 있으므로 그대로 사용
+            // 텍스트 이미지의 하단이 지정된 위치에 오도록 조정
+            const textY = yPos - textDims.height
+            
+            page.drawImage(textImage, {
+              x: xPos,
+              y: textY,
+              width: textDims.width,
+              height: textDims.height,
+            })
+          } catch (error) {
+            console.error('텍스트 이미지 생성 실패:', error)
+            // 폴백: 텍스트를 그대로 시도 (한글이 아닌 경우)
+            try {
+              const textY = pageHeight - yPos - fontSize
+              page.drawText(text, {
+                x: xPos,
+                y: textY,
+                size: fontSize,
+              })
+            } catch (e) {
+              console.error('텍스트 그리기 실패:', e)
+            }
+          }
+        }
+
         // 텍스트 위치에 이름 추가 (우선순위: text_position > signature_name)
         if (report.text_position && report.text_position.text) {
-          const fontSize = 12
-          page.drawText(report.text_position.text, {
-            x: report.text_position.x || 0,
-            y: report.text_position.y || 0,
-            size: fontSize,
-          })
+          await drawTextAsImage(
+            report.text_position.text,
+            report.text_position.x || 0,
+            report.text_position.y || 0,
+            12
+          )
         } else if (report.signature_name) {
           // 서명자 이름이 있고 텍스트 위치가 없으면 이름 위치가 있으면 그 위치에, 없으면 서명 위치 옆에 표시
-          const fontSize = 12
           if (report.name_position_x && report.name_position_y) {
             // 이름 위치가 설정되어 있으면 그 위치에 표시
-            page.drawText(report.signature_name, {
-              x: report.name_position_x || 0,
-              y: report.name_position_y || 0,
-              size: fontSize,
-            })
+            await drawTextAsImage(
+              report.signature_name,
+              report.name_position_x || 0,
+              report.name_position_y || 0,
+              12
+            )
           } else {
             // 이름 위치가 없으면 서명 위치 옆에 표시
-            page.drawText(report.signature_name, {
-              x: x + width + 5,
-              y: y + height / 2 - fontSize / 2,
-              size: fontSize,
-            })
+            await drawTextAsImage(
+              report.signature_name,
+              x + width + 5,
+              pageHeight - (y + height / 2),
+              12
+            )
           }
         }
       }
