@@ -18,7 +18,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
     signature_position_x: 0,
     signature_position_y: 0,
     signature_position_page: 1,
+    signature_name: '',
+    name_position_x: 0,
+    name_position_y: 0,
   })
+  const [showNamePosition, setShowNamePosition] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -47,6 +51,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
       formDataToSend.append('signature_position_x', formData.signature_position_x.toString())
       formDataToSend.append('signature_position_y', formData.signature_position_y.toString())
       formDataToSend.append('signature_position_page', formData.signature_position_page.toString())
+      if (formData.signature_name) {
+        formDataToSend.append('signature_name', formData.signature_name)
+        formDataToSend.append('name_position_x', formData.name_position_x.toString())
+        formDataToSend.append('name_position_y', formData.name_position_y.toString())
+      }
       if (file) {
         formDataToSend.append('file', file)
       }
@@ -71,7 +80,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
         signature_position_x: 0,
         signature_position_y: 0,
         signature_position_page: 1,
+        signature_name: '',
+        name_position_x: 0,
+        name_position_y: 0,
       })
+      setShowNamePosition(false)
       setFile(null)
       router.refresh()
       if (onSuccess) {
@@ -148,6 +161,8 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
                   signature_position_x: 0,
                   signature_position_y: 0,
                   signature_position_page: 1,
+                  name_position_x: 0,
+                  name_position_y: 0,
                 })
               }
             }}
@@ -168,32 +183,112 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
+      {/* 서명자 이름 설정 */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">서명자 정보</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="signature_name" className="block text-sm font-medium text-gray-700">
+              서명자 이름
+            </label>
+            <input
+              id="signature_name"
+              type="text"
+              value={formData.signature_name}
+              onChange={(e) => setFormData({ ...formData, signature_name: e.target.value })}
+              placeholder="예: 홍길동"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">서명할 사람의 이름을 입력하세요.</p>
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showNamePosition}
+                onChange={(e) => {
+                  setShowNamePosition(e.target.checked)
+                  if (!e.target.checked) {
+                    setFormData({ ...formData, name_position_x: 0, name_position_y: 0 })
+                  }
+                }}
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-700">이름 위치 직접 설정</span>
+            </label>
+          </div>
+        </div>
+        {showNamePosition && (
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="name_position_x" className="block text-xs font-medium text-gray-700">
+                이름 X 좌표
+              </label>
+              <input
+                id="name_position_x"
+                type="number"
+                value={formData.name_position_x}
+                onChange={(e) => setFormData({ ...formData, name_position_x: parseInt(e.target.value) || 0 })}
+                className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="name_position_y" className="block text-xs font-medium text-gray-700">
+                이름 Y 좌표
+              </label>
+              <input
+                id="name_position_y"
+                type="number"
+                value={formData.name_position_y}
+                onChange={(e) => setFormData({ ...formData, name_position_y: parseInt(e.target.value) || 0 })}
+                className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {file && (
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="text-sm font-medium text-gray-700 mb-3">서명 위치 설정</h3>
           <p className="text-xs text-gray-600 mb-3">
             아래 미리보기에서 서명할 위치를 클릭하세요. 클릭한 위치가 자동으로 설정됩니다.
+            {showNamePosition && formData.signature_name && (
+              <span className="block mt-1 text-blue-600">
+                이름 위치도 클릭하여 설정할 수 있습니다. (이름 위치 모드로 전환하려면 체크박스를 해제 후 다시 체크하세요)
+              </span>
+            )}
           </p>
           <FilePreviewWithSignature
             file={file}
             onPositionSelect={(position) => {
-              setFormData({
-                ...formData,
-                signature_position_x: position.x,
-                signature_position_y: position.y,
-                signature_position_page: position.page,
-              })
+              if (showNamePosition && formData.signature_name) {
+                // 이름 위치 모드
+                setFormData({
+                  ...formData,
+                  name_position_x: position.x,
+                  name_position_y: position.y,
+                })
+              } else {
+                // 서명 위치 모드
+                setFormData({
+                  ...formData,
+                  signature_position_x: position.x,
+                  signature_position_y: position.y,
+                  signature_position_page: position.page,
+                })
+              }
             }}
             currentPosition={{
-              x: formData.signature_position_x,
-              y: formData.signature_position_y,
+              x: showNamePosition && formData.signature_name ? formData.name_position_x : formData.signature_position_x,
+              y: showNamePosition && formData.signature_name ? formData.name_position_y : formData.signature_position_y,
               page: formData.signature_position_page,
             }}
           />
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="signature_position_x" className="block text-xs font-medium text-gray-700">
-                X 좌표
+                서명 X 좌표
               </label>
               <input
                 id="signature_position_x"
@@ -205,7 +300,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
             </div>
             <div>
               <label htmlFor="signature_position_y" className="block text-xs font-medium text-gray-700">
-                Y 좌표
+                서명 Y 좌표
               </label>
               <input
                 id="signature_position_y"
@@ -229,6 +324,34 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
               />
             </div>
           </div>
+          {showNamePosition && formData.signature_name && (
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="name_position_x" className="block text-xs font-medium text-gray-700">
+                  이름 X 좌표
+                </label>
+                <input
+                  id="name_position_x"
+                  type="number"
+                  value={formData.name_position_x}
+                  onChange={(e) => setFormData({ ...formData, name_position_x: parseInt(e.target.value) || 0 })}
+                  className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="name_position_y" className="block text-xs font-medium text-gray-700">
+                  이름 Y 좌표
+                </label>
+                <input
+                  id="name_position_y"
+                  type="number"
+                  value={formData.name_position_y}
+                  onChange={(e) => setFormData({ ...formData, name_position_y: parseInt(e.target.value) || 0 })}
+                  className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 

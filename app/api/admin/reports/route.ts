@@ -23,6 +23,9 @@ export async function POST(request: NextRequest) {
     const signaturePositionX = formData.get('signature_position_x') as string
     const signaturePositionY = formData.get('signature_position_y') as string
     const signaturePositionPage = formData.get('signature_position_page') as string
+    const signatureName = formData.get('signature_name') as string
+    const namePositionX = formData.get('name_position_x') as string
+    const namePositionY = formData.get('name_position_y') as string
 
     if (!tenant_id || !title || !inspection_date) {
       return NextResponse.json(
@@ -120,19 +123,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 서명자 이름 및 이름 위치 설정
+    let textPosition = null
+    if (signatureName && namePositionX && namePositionY) {
+      textPosition = {
+        x: parseInt(namePositionX) || 0,
+        y: parseInt(namePositionY) || 0,
+        text: signatureName,
+      }
+    }
+
     // 보고서 레코드 생성
+    const reportData: any = {
+      tenant_id,
+      inspection_id: inspection.id,
+      file_path: filePath,
+      title: title,
+      summary: summary || null,
+      file_type: fileExtension,
+      signature_status: 'pending',
+      signature_position: signaturePosition,
+    }
+
+    if (signatureName) {
+      reportData.signature_name = signatureName
+    }
+
+    if (textPosition) {
+      reportData.text_position = textPosition
+    }
+
     const { error: reportError } = await supabase
       .from('inspection_reports')
-      .insert({
-        tenant_id,
-        inspection_id: inspection.id,
-        file_path: filePath,
-        title: title,
-        summary: summary || null,
-        file_type: fileExtension,
-        signature_status: 'pending',
-        signature_position: signaturePosition,
-      })
+      .insert(reportData)
 
     if (reportError) {
       // 보고서 레코드 생성 실패 시 업로드한 파일도 삭제
