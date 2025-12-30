@@ -105,6 +105,11 @@ export async function POST(
 
     if (textPosition) {
       updateData.text_position = textPosition
+      // 이름 위치도 별도로 저장
+      if (textPosition.x !== undefined && textPosition.y !== undefined) {
+        updateData.name_position_x = textPosition.x
+        updateData.name_position_y = textPosition.y
+      }
     }
 
     const { error: updateError } = await supabase

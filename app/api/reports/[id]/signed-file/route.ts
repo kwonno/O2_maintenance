@@ -89,7 +89,7 @@ export async function GET(
           height: height,
         })
 
-        // 텍스트 위치에 이름 추가
+        // 텍스트 위치에 이름 추가 (우선순위: text_position > signature_name)
         if (report.text_position && report.text_position.text) {
           const fontSize = 12
           page.drawText(report.text_position.text, {
@@ -97,16 +97,24 @@ export async function GET(
             y: report.text_position.y || 0,
             size: fontSize,
           })
-        }
-
-        // 서명자 이름이 있고 텍스트 위치가 없으면 서명 위치 옆에 표시
-        if (report.signature_name && !report.text_position) {
+        } else if (report.signature_name) {
+          // 서명자 이름이 있고 텍스트 위치가 없으면 이름 위치가 있으면 그 위치에, 없으면 서명 위치 옆에 표시
           const fontSize = 12
-          page.drawText(report.signature_name, {
-            x: x + width + 5,
-            y: y + height / 2 - fontSize / 2,
-            size: fontSize,
-          })
+          if (report.name_position_x && report.name_position_y) {
+            // 이름 위치가 설정되어 있으면 그 위치에 표시
+            page.drawText(report.signature_name, {
+              x: report.name_position_x || 0,
+              y: report.name_position_y || 0,
+              size: fontSize,
+            })
+          } else {
+            // 이름 위치가 없으면 서명 위치 옆에 표시
+            page.drawText(report.signature_name, {
+              x: x + width + 5,
+              y: y + height / 2 - fontSize / 2,
+              size: fontSize,
+            })
+          }
         }
       }
       

@@ -153,6 +153,12 @@ export async function POST(request: NextRequest) {
       reportData.text_position = textPosition
     }
 
+    // 이름 위치도 별도로 저장 (검수 시 사용)
+    if (namePositionX && namePositionY) {
+      reportData.name_position_x = parseInt(namePositionX) || 0
+      reportData.name_position_y = parseInt(namePositionY) || 0
+    }
+
     const { error: reportError } = await supabase
       .from('inspection_reports')
       .insert(reportData)
