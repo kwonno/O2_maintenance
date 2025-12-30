@@ -103,7 +103,14 @@ export async function POST(
       updateData.signature_name = signatureName
     }
 
-    if (textPosition) {
+    // 이름이 있고 생성 시 이름 위치가 설정되어 있으면 그 위치에 자동 배치
+    if (signatureName && report.name_position_x !== undefined && report.name_position_y !== undefined) {
+      updateData.text_position = {
+        x: report.name_position_x,
+        y: report.name_position_y,
+        text: signatureName,
+      }
+    } else if (textPosition) {
       updateData.text_position = textPosition
       // 이름 위치도 별도로 저장
       if (textPosition.x !== undefined && textPosition.y !== undefined) {

@@ -5,13 +5,14 @@ import { useState, useRef, useEffect } from 'react'
 interface SignatureModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (signatureData: string, signatureType: 'draw' | 'upload', position: { x: number; y: number; page: number }, signatureName?: string, textPosition?: { x: number; y: number; text: string }) => void
+  onSave: (signatureData: string, signatureType: 'draw' | 'upload', position: { x: number; y: number; page: number }, signatureName?: string, textPosition?: { x: number; y: number; text: string } | null) => void
   reportId: string
   defaultPosition?: { x: number; y: number; page: number }
   clickedPosition?: { x: number; y: number; page: number } | null
+  namePosition?: { x: number; y: number } | null
 }
 
-export default function SignatureModal({ isOpen, onClose, onSave, reportId, defaultPosition, clickedPosition }: SignatureModalProps) {
+export default function SignatureModal({ isOpen, onClose, onSave, reportId, defaultPosition, clickedPosition, namePosition }: SignatureModalProps) {
   const [signatureType, setSignatureType] = useState<'draw' | 'upload'>('draw')
   const [signatureData, setSignatureData] = useState<string>('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -128,20 +129,8 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId, defa
     // 클릭한 위치가 있으면 그 위치 사용, 없으면 기본 위치 사용
     const finalPosition = clickedPosition || position
     
-    // 이름 텍스트 위치 설정 (이름이 있고 텍스트 위치가 설정된 경우)
-    let finalTextPosition = null
-    if (signatureName && showTextInput && textPosition && textPosition.text) {
-      finalTextPosition = textPosition
-    } else if (signatureName && showTextInput) {
-      // 이름이 있고 텍스트 위치 설정이 활성화되어 있으면, 서명 위치 옆에 자동 배치
-      finalTextPosition = {
-        x: finalPosition.x + 50, // 서명 위치에서 오른쪽으로 50포인트
-        y: finalPosition.y,
-        text: signatureName,
-      }
-    }
-
-    await onSave(signatureData, signatureType, finalPosition, signatureName || undefined, finalTextPosition || undefined)
+    // 이름이 있으면 생성 시 설정한 위치에 자동 배치 (textPosition은 null로 전달하여 API에서 name_position 사용)
+    await onSave(signatureData, signatureType, finalPosition, signatureName || undefined, null)
   }
 
   if (!isOpen) return null
@@ -224,55 +213,6 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId, defa
           <p className="text-xs text-gray-500 mt-1">페이지: {position.page} (기본값: 1페이지)</p>
         </div>
 
-        {/* 텍스트 위치 설정 */}
-        <div className="mb-4">
-          <label className="flex items-center mb-2">
-            <input
-              type="checkbox"
-              checked={showTextInput}
-              onChange={(e) => {
-                setShowTextInput(e.target.checked)
-                if (!e.target.checked) {
-                  setTextPosition(null)
-                }
-              }}
-              className="mr-2"
-            />
-            <span className="text-sm font-medium text-gray-700">이름 텍스트 위치 설정</span>
-          </label>
-          {showTextInput && (
-            <div className="grid grid-cols-3 gap-4 mt-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">텍스트 X 좌표</label>
-                <input
-                  type="number"
-                  value={textPosition?.x || 0}
-                  onChange={(e) => setTextPosition({ ...(textPosition || { x: 0, y: 0, text: '' }), x: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">텍스트 Y 좌표</label>
-                <input
-                  type="number"
-                  value={textPosition?.y || 0}
-                  onChange={(e) => setTextPosition({ ...(textPosition || { x: 0, y: 0, text: '' }), y: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">텍스트 내용</label>
-                <input
-                  type="text"
-                  value={textPosition?.text || ''}
-                  onChange={(e) => setTextPosition({ ...(textPosition || { x: 0, y: 0, text: '' }), text: e.target.value })}
-                  placeholder="이름 또는 텍스트"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* 직접 그리기 */}
         {signatureType === 'draw' && (

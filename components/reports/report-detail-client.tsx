@@ -282,7 +282,7 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
     signatureType: 'draw' | 'upload', 
     position: { x: number; y: number; page: number },
     signatureName?: string,
-    textPosition?: { x: number; y: number; text: string }
+    textPosition?: { x: number; y: number; text: string } | null
   ) => {
     try {
       const response = await fetch(`/api/reports/${report.id}/signature`, {
@@ -503,6 +503,7 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
         reportId={report.id}
         defaultPosition={report.signature_position || { x: 0, y: 0, page: 1 }}
         clickedPosition={clickedPosition}
+        namePosition={report.name_position_x !== undefined && report.name_position_y !== undefined ? { x: report.name_position_x, y: report.name_position_y } : null}
       />
     </>
   )

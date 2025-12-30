@@ -149,6 +149,9 @@ export async function GET(
             const canvas = createCanvas(600, 150)
             const ctx = canvas.getContext('2d')
             
+            // 캔버스 배경을 투명하게 설정
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            
             ctx.fillStyle = 'black'
             // 한글 폰트가 있으면 사용, 없으면 기본 폰트
             if (fontLoaded) {
@@ -161,7 +164,17 @@ export async function GET(
             // 텍스트 그리기 (baseline 조정)
             ctx.textBaseline = 'top'
             ctx.textAlign = 'left'
-            ctx.fillText(text, 20, 20)
+            
+            // 텍스트가 제대로 렌더링되는지 확인
+            try {
+              ctx.fillText(text, 20, 20)
+              console.log('텍스트 렌더링 성공:', text, '폰트:', fontLoaded ? 'KoreanFont' : 'Arial')
+            } catch (e) {
+              console.error('텍스트 렌더링 실패:', e)
+              // UTF-8 인코딩으로 다시 시도
+              const textBuffer = Buffer.from(text, 'utf-8')
+              ctx.fillText(textBuffer.toString('utf-8'), 20, 20)
+            }
             
             // 텍스트 영역만 잘라내기
             const imageBytes = canvas.toBuffer('image/png')
