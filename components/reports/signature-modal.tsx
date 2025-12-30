@@ -5,18 +5,22 @@ import { useState, useRef, useEffect } from 'react'
 interface SignatureModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (signatureData: string, signatureType: 'draw' | 'upload', position: { x: number; y: number; page: number }) => void
+  onSave: (signatureData: string, signatureType: 'draw' | 'upload', position: { x: number; y: number; page: number }, signatureName?: string, textPosition?: { x: number; y: number; text: string }) => void
   reportId: string
   defaultPosition?: { x: number; y: number; page: number }
+  clickedPosition?: { x: number; y: number; page: number } | null
 }
 
-export default function SignatureModal({ isOpen, onClose, onSave, reportId, defaultPosition }: SignatureModalProps) {
+export default function SignatureModal({ isOpen, onClose, onSave, reportId, defaultPosition, clickedPosition }: SignatureModalProps) {
   const [signatureType, setSignatureType] = useState<'draw' | 'upload'>('draw')
   const [signatureData, setSignatureData] = useState<string>('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [position, setPosition] = useState(defaultPosition || { x: 0, y: 0, page: 1 })
+  const [position, setPosition] = useState(clickedPosition || defaultPosition || { x: 0, y: 0, page: 1 })
+  const [signatureName, setSignatureName] = useState<string>('')
+  const [textPosition, setTextPosition] = useState<{ x: number; y: number; text: string } | null>(null)
+  const [showTextInput, setShowTextInput] = useState(false)
 
   useEffect(() => {
     if (isOpen && signatureType === 'draw' && canvasRef.current) {
@@ -30,6 +34,13 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId, defa
       }
     }
   }, [isOpen, signatureType])
+
+  // 클릭한 위치가 있으면 자동으로 설정
+  useEffect(() => {
+    if (clickedPosition) {
+      setPosition(clickedPosition)
+    }
+  }, [clickedPosition])
 
   const getCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect()
@@ -114,7 +125,7 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId, defa
       return
     }
 
-    await onSave(signatureData, signatureType, position)
+    await onSave(signatureData, signatureType, position, signatureName || undefined, textPosition || undefined)
   }
 
   if (!isOpen) return null
@@ -159,36 +170,92 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId, defa
           </div>
         </div>
 
+        {/* 서명자 이름 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">서명자 이름</label>
+          <input
+            type="text"
+            value={signatureName}
+            onChange={(e) => setSignatureName(e.target.value)}
+            placeholder="서명자 이름을 입력하세요"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+        </div>
+
         {/* 위치 설정 */}
-        <div className="mb-4 grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">X 좌표</label>
-            <input
-              type="number"
-              value={position.x}
-              onChange={(e) => setPosition({ ...position, x: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            />
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">서명 위치 (PDF에서 클릭한 위치가 자동으로 설정됩니다)</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">X 좌표</label>
+              <input
+                type="number"
+                value={position.x}
+                onChange={(e) => setPosition({ ...position, x: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Y 좌표</label>
+              <input
+                type="number"
+                value={position.y}
+                onChange={(e) => setPosition({ ...position, y: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Y 좌표</label>
+          <p className="text-xs text-gray-500 mt-1">페이지: {position.page} (기본값: 1페이지)</p>
+        </div>
+
+        {/* 텍스트 위치 설정 */}
+        <div className="mb-4">
+          <label className="flex items-center mb-2">
             <input
-              type="number"
-              value={position.y}
-              onChange={(e) => setPosition({ ...position, y: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              type="checkbox"
+              checked={showTextInput}
+              onChange={(e) => {
+                setShowTextInput(e.target.checked)
+                if (!e.target.checked) {
+                  setTextPosition(null)
+                }
+              }}
+              className="mr-2"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">페이지</label>
-            <input
-              type="number"
-              min="1"
-              value={position.page}
-              onChange={(e) => setPosition({ ...position, page: parseInt(e.target.value) || 1 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            />
-          </div>
+            <span className="text-sm font-medium text-gray-700">이름 텍스트 위치 설정</span>
+          </label>
+          {showTextInput && (
+            <div className="grid grid-cols-3 gap-4 mt-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">텍스트 X 좌표</label>
+                <input
+                  type="number"
+                  value={textPosition?.x || 0}
+                  onChange={(e) => setTextPosition({ ...(textPosition || { x: 0, y: 0, text: '' }), x: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">텍스트 Y 좌표</label>
+                <input
+                  type="number"
+                  value={textPosition?.y || 0}
+                  onChange={(e) => setTextPosition({ ...(textPosition || { x: 0, y: 0, text: '' }), y: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">텍스트 내용</label>
+                <input
+                  type="text"
+                  value={textPosition?.text || ''}
+                  onChange={(e) => setTextPosition({ ...(textPosition || { x: 0, y: 0, text: '' }), text: e.target.value })}
+                  placeholder="이름 또는 텍스트"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 직접 그리기 */}

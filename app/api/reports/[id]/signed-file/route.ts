@@ -80,7 +80,7 @@ export async function GET(
         const { width, height } = signatureImage.scale(0.3) // 서명 크기 조정
         
         const x = report.signature_position.x || 0
-        const y = page.getHeight() - (report.signature_position.y || 0) - height // PDF 좌표계는 하단이 0
+        const y = report.signature_position.y || 0 // 이미 PDF 좌표계로 저장되어 있음
         
         page.drawImage(signatureImage, {
           x: x,
@@ -88,6 +88,26 @@ export async function GET(
           width: width,
           height: height,
         })
+
+        // 텍스트 위치에 이름 추가
+        if (report.text_position && report.text_position.text) {
+          const fontSize = 12
+          page.drawText(report.text_position.text, {
+            x: report.text_position.x || 0,
+            y: report.text_position.y || 0,
+            size: fontSize,
+          })
+        }
+
+        // 서명자 이름이 있고 텍스트 위치가 없으면 서명 위치 옆에 표시
+        if (report.signature_name && !report.text_position) {
+          const fontSize = 12
+          page.drawText(report.signature_name, {
+            x: x + width + 5,
+            y: y + height / 2 - fontSize / 2,
+            size: fontSize,
+          })
+        }
       }
       
       // pdfDoc.save()는 Uint8Array를 반환

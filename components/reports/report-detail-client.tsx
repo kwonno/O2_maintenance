@@ -16,11 +16,13 @@ if (typeof window !== 'undefined') {
 function PdfViewerWithSignature({ 
   pdfUrl, 
   signatureData, 
-  position 
+  position,
+  onPositionClick
 }: { 
   pdfUrl: string
   signatureData: string | null
   position: { x: number; y: number; page: number } | null
+  onPositionClick?: (position: { x: number; y: number; page: number }) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -28,6 +30,7 @@ function PdfViewerWithSignature({
   const [totalPages, setTotalPages] = useState(0)
   const [scale, setScale] = useState(1.5)
   const [pdfDoc, setPdfDoc] = useState<any>(null)
+  const [pageViewport, setPageViewport] = useState<any>(null)
 
   useEffect(() => {
     if (position) {
@@ -81,6 +84,7 @@ function PdfViewerWithSignature({
         const viewport = page.getViewport({ scale })
         canvas.height = viewport.height
         canvas.width = viewport.width
+        setPageViewport({ viewport, page })
 
         // 캔버스 초기화
         context.clearRect(0, 0, canvas.width, canvas.height)
@@ -105,6 +109,28 @@ function PdfViewerWithSignature({
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page)
     }
+  }
+
+  // 캔버스 클릭 시 PDF 좌표로 변환
+  const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onPositionClick || !canvasRef.current || !pageViewport) return
+
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const clickY = e.clientY - rect.top
+
+    // PDF 좌표로 변환
+    // viewport는 이미 scale이 적용된 크기이므로, 클릭 좌표를 viewport 좌표로 변환
+    const { viewport } = pageViewport
+    const pdfX = (clickX / canvas.width) * viewport.width
+    const pdfY = viewport.height - ((clickY / canvas.height) * viewport.height) // Y 좌표 반전 (PDF 좌표계는 하단이 0)
+
+    onPositionClick({
+      x: Math.round(pdfX),
+      y: Math.round(pdfY),
+      page: currentPage,
+    })
   }
 
   return (
@@ -151,14 +177,19 @@ function PdfViewerWithSignature({
       <div className="relative border border-gray-300 rounded overflow-auto bg-gray-100" style={{ maxHeight: '800px' }}>
         <div className="flex justify-center p-4">
           <div className="relative">
-            <canvas ref={canvasRef} className="shadow-lg" />
+            <canvas 
+              ref={canvasRef} 
+              className="shadow-lg cursor-crosshair" 
+              onClick={handleCanvasClick}
+              title={onPositionClick ? "서명 위치를 클릭하세요" : ""}
+            />
             {/* 서명 오버레이 - PDF 좌표에 정확히 맞춤 */}
-            {signatureData && position && position.page === currentPage && canvasRef.current && (
+            {signatureData && position && position.page === currentPage && canvasRef.current && pageViewport && (
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  left: `${position.x * scale}px`,
-                  top: `${position.y * scale}px`,
+                  left: `${(position.x / pageViewport.viewport.width) * canvasRef.current.width}px`,
+                  top: `${((pageViewport.viewport.height - position.y) / pageViewport.viewport.height) * canvasRef.current.height}px`, // Y 좌표 반전
                   transform: 'translate(-50%, -50%)',
                 }}
               >
@@ -191,8 +222,20 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false)
   const [signatureStatus, setSignatureStatus] = useState(report.signature_status || 'pending')
   const [signatureData, setSignatureData] = useState(report.signature_data || null)
+  const [clickedPosition, setClickedPosition] = useState<{ x: number; y: number; page: number } | null>(null)
 
-  const handleSaveSignature = async (signatureData: string, signatureType: 'draw' | 'upload', position: { x: number; y: number; page: number }) => {
+  const handlePositionClick = (position: { x: number; y: number; page: number }) => {
+    setClickedPosition(position)
+    setIsSignatureModalOpen(true)
+  }
+
+  const handleSaveSignature = async (
+    signatureData: string, 
+    signatureType: 'draw' | 'upload', 
+    position: { x: number; y: number; page: number },
+    signatureName?: string,
+    textPosition?: { x: number; y: number; text: string }
+  ) => {
     try {
       const response = await fetch(`/api/reports/${report.id}/signature`, {
         method: 'POST',
@@ -203,6 +246,8 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
           signatureData,
           signatureType,
           position: position || report.signature_position || { x: 0, y: 0, page: 1 },
+          signatureName,
+          textPosition,
         }),
       })
 
@@ -339,6 +384,7 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
                       pdfUrl={signedUrl}
                       signatureData={signatureData}
                       position={report.signature_position}
+                      onPositionClick={canSign && signatureStatus === 'pending' ? handlePositionClick : undefined}
                     />
                   ) : (
                     <div className="text-sm text-red-600">
@@ -372,10 +418,14 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
 
       <SignatureModal
         isOpen={isSignatureModalOpen}
-        onClose={() => setIsSignatureModalOpen(false)}
+        onClose={() => {
+          setIsSignatureModalOpen(false)
+          setClickedPosition(null)
+        }}
         onSave={handleSaveSignature}
         reportId={report.id}
         defaultPosition={report.signature_position || { x: 0, y: 0, page: 1 }}
+        clickedPosition={clickedPosition}
       />
     </>
   )

@@ -28,7 +28,7 @@ export async function POST(
 
     const resolvedParams = await Promise.resolve(params)
     const body = await request.json()
-    const { signatureData, signatureType, position } = body
+    const { signatureData, signatureType, position, signatureName, textPosition } = body
 
     if (!signatureData) {
       return NextResponse.json(
@@ -97,6 +97,14 @@ export async function POST(
 
     if (signaturePath) {
       updateData.signature_path = signaturePath
+    }
+
+    if (signatureName) {
+      updateData.signature_name = signatureName
+    }
+
+    if (textPosition) {
+      updateData.text_position = textPosition
     }
 
     const { error: updateError } = await supabase
