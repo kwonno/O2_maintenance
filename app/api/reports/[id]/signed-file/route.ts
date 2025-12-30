@@ -58,7 +58,7 @@ export async function GET(
     const fileResponse = await fetch(originalFileUrl)
     const fileBuffer = await fileResponse.arrayBuffer()
 
-    let signedFileBuffer: ArrayBuffer
+    let signedFileBuffer: Uint8Array | ArrayBuffer
     const fileName = report.file_path.split('/').pop() || 'report'
     const fileExtension = report.file_type || 'pdf'
 
@@ -90,6 +90,7 @@ export async function GET(
         })
       }
       
+      // pdfDoc.save()는 Uint8Array를 반환
       signedFileBuffer = await pdfDoc.save()
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
       // 엑셀 파일의 경우 원본 파일을 그대로 반환 (엑셀에 이미지 삽입은 복잡하므로)
@@ -105,8 +106,12 @@ export async function GET(
     // 파일명 생성
     const signedFileName = `${fileName.replace(/\.[^/.]+$/, '')}_서명본.${fileExtension}`
 
-    // 서명된 파일 반환
-    return new NextResponse(signedFileBuffer, {
+    // 서명된 파일 반환 (Uint8Array를 Buffer로 변환)
+    const responseBuffer = signedFileBuffer instanceof Uint8Array 
+      ? Buffer.from(signedFileBuffer) 
+      : Buffer.from(signedFileBuffer)
+    
+    return new NextResponse(responseBuffer, {
       headers: {
         'Content-Type': fileExtension === 'pdf' 
           ? 'application/pdf' 
