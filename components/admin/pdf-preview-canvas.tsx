@@ -27,7 +27,7 @@ export default function PdfPreviewCanvas({
   const [totalPages, setTotalPages] = useState(0)
   const [pdfDoc, setPdfDoc] = useState<any>(null)
   const [pageViewport, setPageViewport] = useState<any>(null)
-  const [calculatedScale, setCalculatedScale] = useState<number>(1.0)
+  const [calculatedScale, setCalculatedScale] = useState<number | null>(null)
 
   useEffect(() => {
     const loadPdf = async () => {
@@ -51,7 +51,10 @@ export default function PdfPreviewCanvas({
 
   useEffect(() => {
     const renderPage = async () => {
-      if (!pdfDoc || !canvasRef.current || !containerRef.current || currentPage < 1 || currentPage > totalPages) return
+      if (!pdfDoc || !canvasRef.current || !containerRef.current || currentPage < 1 || currentPage > totalPages) {
+        console.log('렌더링 조건 불만족:', { pdfDoc: !!pdfDoc, canvas: !!canvasRef.current, container: !!containerRef.current, currentPage, totalPages })
+        return
+      }
 
       try {
         const page = await pdfDoc.getPage(currentPage)
@@ -64,17 +67,24 @@ export default function PdfPreviewCanvas({
           return
         }
         
+        // 컨테이너 크기 확인
+        const containerWidth = container.clientWidth || 800
+        const containerHeight = container.clientHeight || 600
+        
         // scale이 지정되지 않으면 컨테이너에 맞게 자동 계산
         let finalScale = scale
         if (!finalScale) {
-          const containerWidth = container.clientWidth - 32 // padding 고려
-          const containerHeight = container.clientHeight - 32
           const pageView = page.view
           
           // 컨테이너에 맞게 scale 계산 (여백 고려)
-          const scaleX = (containerWidth / pageView.width) * 0.95
-          const scaleY = (containerHeight / pageView.height) * 0.95
+          const scaleX = ((containerWidth - 32) / pageView.width) * 0.95
+          const scaleY = ((containerHeight - 32) / pageView.height) * 0.95
           finalScale = Math.min(scaleX, scaleY, 1.0) // 최대 100%까지만
+          
+          if (isNaN(finalScale) || finalScale <= 0) {
+            finalScale = 0.5 // 기본값
+          }
+          
           setCalculatedScale(finalScale)
         } else {
           setCalculatedScale(finalScale)
@@ -94,66 +104,58 @@ export default function PdfPreviewCanvas({
         }
 
         await page.render(renderContext).promise
+        console.log('PDF 렌더링 완료:', { currentPage, finalScale, viewport: { width: viewport.width, height: viewport.height } })
       } catch (error: any) {
         console.error('페이지 렌더링 실패:', error)
       }
     }
 
     if (pdfDoc && totalPages > 0) {
-      // 컨테이너 크기 변경 감지를 위한 약간의 지연
+      // 컨테이너가 마운트될 때까지 대기
       const timer = setTimeout(() => {
         renderPage()
-      }, 100)
+      }, 200)
       return () => clearTimeout(timer)
     }
   }, [pdfDoc, currentPage, scale, totalPages])
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || !pageViewport || !containerRef.current) return
+    if (!canvasRef.current || !pageViewport) {
+      console.log('클릭 처리 불가:', { canvas: !!canvasRef.current, pageViewport: !!pageViewport })
+      return
+    }
 
     const canvas = canvasRef.current
-    const container = containerRef.current
-    
-    // 캔버스의 실제 위치 (스크롤 고려)
     const canvasRect = canvas.getBoundingClientRect()
-    const containerRect = container.getBoundingClientRect()
     
-    // 클릭 위치를 캔버스 좌표로 변환 (스크롤 오프셋 포함)
+    // 클릭 위치를 캔버스 좌표로 변환 (문서의 실제 위치)
     const clickX = e.clientX - canvasRect.left
     const clickY = e.clientY - canvasRect.top
 
-    // PDF 좌표로 변환
+    // PDF 문서의 실제 좌표로 변환 (포인트 단위)
     const { viewport, page } = pageViewport
-    const pageSize = page.view
+    const pageView = page.view // PDF 문서의 실제 크기 (포인트)
     
-    // 클릭 좌표를 PDF 좌표로 변환
-    const pdfX = (clickX / viewport.width) * pageSize.width
-    // Y 좌표는 PDF 좌표계(하단이 0)로 변환하여 저장
-    const pdfY = pageSize.height - ((clickY / viewport.height) * pageSize.height)
+    // 화면 좌표를 PDF 문서 좌표로 변환
+    // viewport는 scale이 적용된 크기이므로, 비율로 계산
+    const pdfX = (clickX / viewport.width) * pageView.width
+    // Y 좌표는 PDF 좌표계(하단이 0)로 변환
+    const pdfY = pageView.height - ((clickY / viewport.height) * pageView.height)
 
     const roundedX = Math.round(pdfX)
     const roundedY = Math.round(pdfY)
 
-    console.log('클릭 좌표:', { 
-      clientX: e.clientX, 
-      clientY: e.clientY,
-      canvasLeft: canvasRect.left,
-      canvasTop: canvasRect.top,
-      clickX, 
-      clickY, 
-      viewportWidth: viewport.width,
-      viewportHeight: viewport.height,
-      pageSizeWidth: pageSize.width,
-      pageSizeHeight: pageSize.height,
-      pdfX, 
-      pdfY, 
-      roundedX, 
-      roundedY 
+    console.log('클릭 좌표 (PDF 문서 위치):', { 
+      화면좌표: { clickX, clickY },
+      PDF문서크기: { width: pageView.width, height: pageView.height },
+      PDF문서좌표: { pdfX, pdfY },
+      최종좌표: { roundedX, roundedY },
+      페이지: currentPage
     })
 
     onPositionSelect({
-      x: roundedX,
-      y: roundedY,
+      x: roundedX, // PDF 문서의 실제 X 좌표 (포인트)
+      y: roundedY, // PDF 문서의 실제 Y 좌표 (포인트, 하단이 0)
       page: currentPage,
     })
   }
@@ -188,7 +190,9 @@ export default function PdfPreviewCanvas({
             다음
           </button>
         </div>
-        <span className="text-xs text-gray-500">크기: {Math.round(calculatedScale * 100)}% {scale ? '(고정)' : '(자동)'}</span>
+        <span className="text-xs text-gray-500">
+          크기: {calculatedScale !== null ? Math.round(calculatedScale * 100) : '계산중'}% {scale ? '(고정)' : '(자동)'}
+        </span>
       </div>
       <div 
         ref={containerRef}
@@ -202,7 +206,7 @@ export default function PdfPreviewCanvas({
             onClick={handleCanvasClick}
             title="서명 위치를 클릭하세요"
           />
-          {/* 현재 위치 마커 */}
+          {/* 현재 위치 마커 - PDF 문서 좌표를 화면 좌표로 변환 */}
           {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && (
             <div
               className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
@@ -214,6 +218,11 @@ export default function PdfPreviewCanvas({
             />
           )}
         </div>
+        {!pdfDoc && (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+            PDF 로딩 중...
+          </div>
+        )}
       </div>
     </div>
   )
