@@ -17,12 +17,18 @@ function PdfViewerWithSignature({
   pdfUrl, 
   signatureData, 
   position,
-  onPositionClick
+  onPositionClick,
+  textPosition,
+  signatureName,
+  namePosition
 }: { 
   pdfUrl: string
   signatureData: string | null
   position: { x: number; y: number; page: number } | null
   onPositionClick?: (position: { x: number; y: number; page: number }) => void
+  textPosition?: { x: number; y: number; text: string; page?: number } | null
+  signatureName?: string | null
+  namePosition?: { x: number; y: number } | null
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -197,25 +203,56 @@ function PdfViewerWithSignature({
           />
           {/* 서명 오버레이 - PDF 좌표에 정확히 맞춤 */}
           {signatureData && position && position.page === currentPage && canvasRef.current && pageViewport && pageViewport.actualViewport && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: `${(position.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
-                top: `${((pageViewport.actualViewport.height - position.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
-                transform: 'translate(-50%, -50%)',
-              }}
-            >
-              <img 
-                src={signatureData} 
-                alt="서명" 
-                className="border-2 border-red-500 rounded shadow-lg bg-white p-1"
-                style={{ 
-                  width: `${Math.max(80, 100 * calculatedScale)}px`,
-                  height: 'auto',
-                  maxWidth: '200px',
+            <>
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${(position.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
+                  top: `${((pageViewport.actualViewport.height - position.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
+                  transform: 'translate(-50%, -50%)',
                 }}
-              />
-            </div>
+              >
+                <img 
+                  src={signatureData} 
+                  alt="서명" 
+                  className="border-2 border-red-500 rounded shadow-lg bg-white p-1"
+                  style={{ 
+                    width: `${Math.max(80, 100 * calculatedScale)}px`,
+                    height: 'auto',
+                    maxWidth: '200px',
+                  }}
+                />
+              </div>
+              {/* 이름 텍스트 오버레이 */}
+              {textPosition && textPosition.text && (!textPosition.page || textPosition.page === currentPage) && (
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${(textPosition.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
+                    top: `${((pageViewport.actualViewport.height - textPosition.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <div className="bg-white border-2 border-blue-500 rounded px-2 py-1 shadow-lg">
+                    <span className="text-lg font-bold text-black">{textPosition.text}</span>
+                  </div>
+                </div>
+              )}
+              {signatureName && !textPosition && namePosition && (
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${(namePosition.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
+                    top: `${((pageViewport.actualViewport.height - namePosition.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <div className="bg-white border-2 border-blue-500 rounded px-2 py-1 shadow-lg">
+                    <span className="text-lg font-bold text-black">{signatureName}</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -353,6 +390,12 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
               </dd>
             </div>
           )}
+          {report.signature_name && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <dt className="text-sm font-medium text-gray-500 mb-2">서명자 이름</dt>
+              <dd className="text-lg font-semibold text-gray-900">{report.signature_name}</dd>
+            </div>
+          )}
 
           {signedUrl && (
             <div className="space-y-4">
@@ -416,6 +459,9 @@ export default function ReportDetailClient({ report, signedUrl, canSign }: Repor
                       signatureData={signatureData}
                       position={report.signature_position}
                       onPositionClick={canSign && signatureStatus === 'pending' ? handlePositionClick : undefined}
+                      textPosition={report.text_position}
+                      signatureName={report.signature_name}
+                      namePosition={report.name_position_x !== undefined && report.name_position_y !== undefined ? { x: report.name_position_x, y: report.name_position_y } : null}
                     />
                   ) : (
                     <div className="text-sm text-red-600">

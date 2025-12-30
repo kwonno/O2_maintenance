@@ -81,11 +81,11 @@ export async function GET(
         const { width, height } = signatureImage.scale(0.3) // 서명 크기 조정
         
         // PDF 좌표계: pdf-lib의 drawImage는 y를 하단 기준으로 사용
-        // 저장된 좌표는 클릭한 위치 (이미지의 중심 또는 상단을 의도)
-        // pdf-lib에서 이미지의 상단이 지정된 y에 오려면 y + height를 사용해야 함
+        // 저장된 좌표는 클릭한 위치 (이미지의 중심을 의도)
+        // 클릭한 위치에 이미지의 중심이 오도록 조정
         const x = report.signature_position.x || 0
-        // 클릭한 위치에 이미지의 상단이 오도록 조정 (pdf-lib는 y를 하단 기준으로 사용)
-        const y = (report.signature_position.y || 0) + height
+        // 클릭한 위치에 이미지의 중심이 오도록 조정 (pdf-lib는 y를 하단 기준으로 사용)
+        const y = (report.signature_position.y || 0) + (height / 2)
         
         page.drawImage(signatureImage, {
           x: x,
@@ -99,22 +99,46 @@ export async function GET(
           try {
             // Node.js 환경에서 canvas를 사용하여 텍스트를 이미지로 변환
             const { createCanvas, registerFont } = await import('canvas')
-            const path = await import('path')
             const fs = await import('fs')
+            const os = await import('os')
             
+            let fontLoaded = false
             // 한글 폰트 로드 시도 (시스템 폰트 사용)
             try {
-              // Windows 기본 한글 폰트 경로
-              const fontPaths = [
-                'C:/Windows/Fonts/malgun.ttf', // 맑은 고딕
-                'C:/Windows/Fonts/gulim.ttc', // 굴림
-                'C:/Windows/Fonts/batang.ttc', // 바탕
-              ]
+              const platform = os.platform()
+              let fontPaths: string[] = []
+              
+              if (platform === 'win32') {
+                // Windows 기본 한글 폰트 경로
+                fontPaths = [
+                  'C:/Windows/Fonts/malgun.ttf', // 맑은 고딕
+                  'C:/Windows/Fonts/gulim.ttc', // 굴림
+                  'C:/Windows/Fonts/batang.ttc', // 바탕
+                ]
+              } else if (platform === 'darwin') {
+                // macOS 한글 폰트 경로
+                fontPaths = [
+                  '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+                  '/Library/Fonts/AppleGothic.ttf',
+                ]
+              } else {
+                // Linux 한글 폰트 경로
+                fontPaths = [
+                  '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+                  '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                ]
+              }
               
               for (const fontPath of fontPaths) {
-                if (fs.existsSync(fontPath)) {
-                  registerFont(fontPath, { family: 'KoreanFont' })
-                  break
+                try {
+                  if (fs.existsSync(fontPath)) {
+                    registerFont(fontPath, { family: 'KoreanFont' })
+                    fontLoaded = true
+                    console.log('한글 폰트 로드 성공:', fontPath)
+                    break
+                  }
+                } catch (e) {
+                  console.warn('폰트 로드 실패:', fontPath, e)
                 }
               }
             } catch (e) {
@@ -122,24 +146,27 @@ export async function GET(
             }
             
             // 텍스트 크기 측정을 위해 더 큰 캔버스 사용
-            const canvas = createCanvas(400, 100)
+            const canvas = createCanvas(600, 150)
             const ctx = canvas.getContext('2d')
             
             ctx.fillStyle = 'black'
             // 한글 폰트가 있으면 사용, 없으면 기본 폰트
-            try {
-              ctx.font = `${fontSize}px KoreanFont, Arial, sans-serif`
-            } catch (e) {
-              ctx.font = `${fontSize}px Arial, sans-serif`
+            if (fontLoaded) {
+              ctx.font = `bold ${fontSize}px KoreanFont`
+            } else {
+              // 기본 폰트 사용 (한글이 깨질 수 있음)
+              ctx.font = `bold ${fontSize}px Arial, sans-serif`
             }
             
             // 텍스트 그리기 (baseline 조정)
             ctx.textBaseline = 'top'
-            ctx.fillText(text, 10, 10)
+            ctx.textAlign = 'left'
+            ctx.fillText(text, 20, 20)
             
+            // 텍스트 영역만 잘라내기
             const imageBytes = canvas.toBuffer('image/png')
             const textImage = await pdfDoc.embedPng(imageBytes)
-            const textDims = textImage.scale(0.5)
+            const textDims = textImage.scale(0.8) // 크기 조정
             
             // pdf-lib의 drawImage는 y를 하단 기준으로 사용
             // 클릭한 위치에 텍스트 이미지의 상단이 오도록 조정
@@ -173,7 +200,7 @@ export async function GET(
             report.text_position.text,
             report.text_position.x || 0,
             report.text_position.y || 0,
-            12
+            18 // 폰트 크기 증가
           )
         } else if (report.signature_name) {
           // 서명자 이름이 있고 텍스트 위치가 없으면 이름 위치가 있으면 그 위치에, 없으면 서명 위치 옆에 표시
@@ -183,16 +210,16 @@ export async function GET(
               report.signature_name,
               report.name_position_x || 0,
               report.name_position_y || 0,
-              12
+              18 // 폰트 크기 증가
             )
           } else {
             // 이름 위치가 없으면 서명 위치 옆에 표시
             // pdf-lib의 drawImage는 y를 하단 기준으로 사용하므로, 서명의 중심 높이에 맞춤
             await drawTextAsImage(
               report.signature_name,
-              x + width + 5,
+              x + width + 10,
               y - height / 2, // 서명의 중심 높이
-              12
+              18 // 폰트 크기 증가
             )
           }
         }
