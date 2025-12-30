@@ -85,18 +85,20 @@ function PdfViewerWithSignature({
         // 컨테이너에 맞게 자동 scale 계산
         const containerWidth = container.clientWidth - 32 // padding 고려
         const containerHeight = container.clientHeight - 32
-        const pageView = page.view
+        
+        // PDF 문서의 실제 크기 가져오기 (scale 1.0으로)
+        const actualViewport = page.getViewport({ scale: 1.0 })
         
         // 컨테이너에 맞게 scale 계산 (여백 고려)
-        const scaleX = (containerWidth / pageView.width) * 0.95
-        const scaleY = (containerHeight / pageView.height) * 0.95
+        const scaleX = (containerWidth / actualViewport.width) * 0.95
+        const scaleY = (containerHeight / actualViewport.height) * 0.95
         const autoScale = Math.min(scaleX, scaleY, 1.0) // 최대 100%까지만
         setCalculatedScale(autoScale)
         
         const viewport = page.getViewport({ scale: autoScale })
         canvas.height = viewport.height
         canvas.width = viewport.width
-        setPageViewport({ viewport, page })
+        setPageViewport({ viewport, page, actualViewport })
 
         // 캔버스 초기화
         context.clearRect(0, 0, canvas.width, canvas.height)
@@ -138,13 +140,12 @@ function PdfViewerWithSignature({
 
     // PDF 좌표로 변환
     // viewport는 이미 scale이 적용된 크기이고, canvas 크기와 동일함
-    const { viewport, page } = pageViewport
-    const pageSize = page.view
+    const { viewport, actualViewport } = pageViewport
     
     // 클릭 좌표를 PDF 좌표로 변환 (viewport는 scale이 적용된 크기)
-    const pdfX = (clickX / viewport.width) * pageSize.width
+    const pdfX = (clickX / viewport.width) * actualViewport.width
     // Y 좌표는 PDF 좌표계(하단이 0)로 변환하여 저장
-    const pdfY = pageSize.height - ((clickY / viewport.height) * pageSize.height)
+    const pdfY = actualViewport.height - ((clickY / viewport.height) * actualViewport.height)
 
     onPositionClick({
       x: Math.round(pdfX),
@@ -195,12 +196,12 @@ function PdfViewerWithSignature({
             title={onPositionClick ? "서명 위치를 클릭하세요" : ""}
           />
           {/* 서명 오버레이 - PDF 좌표에 정확히 맞춤 */}
-          {signatureData && position && position.page === currentPage && canvasRef.current && pageViewport && (
+          {signatureData && position && position.page === currentPage && canvasRef.current && pageViewport && pageViewport.actualViewport && (
             <div
               className="absolute pointer-events-none"
               style={{
-                left: `${(position.x / pageViewport.page.view.width) * canvasRef.current.width}px`,
-                top: `${((pageViewport.page.view.height - position.y) / pageViewport.page.view.height) * canvasRef.current.height}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
+                left: `${(position.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
+                top: `${((pageViewport.actualViewport.height - position.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
                 transform: 'translate(-50%, -50%)',
               }}
             >

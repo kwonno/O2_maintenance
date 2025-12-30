@@ -110,9 +110,9 @@ export async function GET(
             const textImage = await pdfDoc.embedPng(imageBytes)
             const textDims = textImage.scale(0.5)
             
-            // Y 좌표는 PDF 좌표계(하단이 0)로 저장되어 있으므로 그대로 사용
-            // 텍스트 이미지의 하단이 지정된 위치에 오도록 조정
-            const textY = yPos - textDims.height
+            // pdf-lib의 drawImage는 y를 하단 기준으로 사용
+            // 클릭한 위치에 텍스트 이미지의 상단이 오도록 조정
+            const textY = yPos + textDims.height
             
             page.drawImage(textImage, {
               x: xPos,
@@ -156,10 +156,11 @@ export async function GET(
             )
           } else {
             // 이름 위치가 없으면 서명 위치 옆에 표시
+            // pdf-lib의 drawImage는 y를 하단 기준으로 사용하므로, 서명의 중심 높이에 맞춤
             await drawTextAsImage(
               report.signature_name,
               x + width + 5,
-              pageHeight - (y + height / 2),
+              y - height / 2, // 서명의 중심 높이
               12
             )
           }
