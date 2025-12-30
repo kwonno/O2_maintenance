@@ -207,7 +207,7 @@ export default function PdfPreviewCanvas({
             title="서명 위치를 클릭하세요"
           />
           {/* 현재 위치 마커 - PDF 문서 좌표를 화면 좌표로 변환 */}
-          {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && (
+          {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x >= 0 && currentPosition.y >= 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && pageViewport.page && pageViewport.page.view && (
             <div
               className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
               style={{

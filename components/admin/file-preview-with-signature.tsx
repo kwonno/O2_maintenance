@@ -213,7 +213,7 @@ export default function FilePreviewWithSignature({
 
       <div className="bg-gray-50 p-3 rounded-lg">
         <p className="text-xs text-gray-600">
-          현재 설정된 위치: X={!isNaN(currentPosition.x) ? currentPosition.x : 0}, Y={!isNaN(currentPosition.y) ? currentPosition.y : 0}, 페이지={currentPosition.page}
+          현재 설정된 위치: X={!isNaN(currentPosition.x) && currentPosition.x !== undefined ? currentPosition.x : 0}, Y={!isNaN(currentPosition.y) && currentPosition.y !== undefined ? currentPosition.y : 0}, 페이지={currentPosition.page || 1}
         </p>
       </div>
     </div>

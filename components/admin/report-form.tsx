@@ -260,8 +260,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
               <input
                 id="signature_position_x"
                 type="number"
-                value={formData.signature_position_x}
-                onChange={(e) => setFormData({ ...formData, signature_position_x: parseInt(e.target.value) || 0 })}
+                value={isNaN(formData.signature_position_x) ? '' : formData.signature_position_x}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0
+                  setFormData({ ...formData, signature_position_x: isNaN(val) ? 0 : val })
+                }}
                 className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -272,8 +275,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
               <input
                 id="signature_position_y"
                 type="number"
-                value={formData.signature_position_y}
-                onChange={(e) => setFormData({ ...formData, signature_position_y: parseInt(e.target.value) || 0 })}
+                value={isNaN(formData.signature_position_y) ? '' : formData.signature_position_y}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0
+                  setFormData({ ...formData, signature_position_y: isNaN(val) ? 0 : val })
+                }}
                 className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -300,8 +306,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
                 <input
                   id="name_position_x"
                   type="number"
-                  value={formData.name_position_x}
-                  onChange={(e) => setFormData({ ...formData, name_position_x: parseInt(e.target.value) || 0 })}
+                  value={isNaN(formData.name_position_x) ? '' : formData.name_position_x}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    setFormData({ ...formData, name_position_x: isNaN(val) ? 0 : val })
+                  }}
                   className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -312,8 +321,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
                 <input
                   id="name_position_y"
                   type="number"
-                  value={formData.name_position_y}
-                  onChange={(e) => setFormData({ ...formData, name_position_y: parseInt(e.target.value) || 0 })}
+                  value={isNaN(formData.name_position_y) ? '' : formData.name_position_y}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    setFormData({ ...formData, name_position_y: isNaN(val) ? 0 : val })
+                  }}
                   className="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
