@@ -81,11 +81,13 @@ export async function GET(
         const { width, height } = signatureImage.scale(0.3) // 서명 크기 조정
         
         // PDF 좌표계: pdf-lib의 drawImage는 y를 하단 기준으로 사용
-        // 저장된 좌표는 클릭한 위치 (이미지의 중심을 의도)
-        // 클릭한 위치에 이미지의 중심이 오도록 조정
+        // 저장된 좌표는 클릭한 위치 (PDF 문서 좌표, 하단이 0)
+        // UI에서 표시할 때: top = ((pageHeight - y) / pageHeight) * canvasHeight
+        // 즉, y가 클수록 (위쪽) 화면에서는 아래쪽에 표시됨
+        // pdf-lib에서 그릴 때: y는 이미지의 하단 기준
+        // 클릭한 위치에 이미지의 상단이 오려면: y + height
         const x = report.signature_position.x || 0
-        // 클릭한 위치에 이미지의 중심이 오도록 조정 (pdf-lib는 y를 하단 기준으로 사용)
-        const y = (report.signature_position.y || 0) + (height / 2)
+        const y = (report.signature_position.y || 0) + height
         
         page.drawImage(signatureImage, {
           x: x,
