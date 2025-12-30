@@ -169,13 +169,13 @@ export default function FilePreviewWithSignature({
       {fileType === 'pdf' && file && (
         <div className="space-y-2">
           <div className="bg-yellow-50 p-2 rounded text-sm text-yellow-800">
-            PDF에서 서명할 위치를 클릭하세요. (크기 고정: 100%)
+            PDF에서 서명할 위치를 클릭하세요. (자동 축소: 한 화면에 맞춤)
           </div>
           <PdfPreviewCanvas
             file={file}
             onPositionSelect={onPositionSelect}
             currentPosition={currentPosition}
-            scale={1.0} // 고정 scale (검수 시와 동일)
+            // scale을 지정하지 않으면 자동으로 컨테이너에 맞게 축소
           />
         </div>
       )}

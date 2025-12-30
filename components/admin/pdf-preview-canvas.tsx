@@ -12,14 +12,14 @@ interface PdfPreviewCanvasProps {
   file: File
   onPositionSelect: (position: { x: number; y: number; page: number }) => void
   currentPosition: { x: number; y: number; page: number }
-  scale?: number // 고정 scale (기본값 1.0)
+  scale?: number // 자동 계산 (지정하지 않으면 컨테이너에 맞게 자동 축소)
 }
 
 export default function PdfPreviewCanvas({
   file,
   onPositionSelect,
   currentPosition,
-  scale = 1.0,
+  scale,
 }: PdfPreviewCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -27,6 +27,7 @@ export default function PdfPreviewCanvas({
   const [totalPages, setTotalPages] = useState(0)
   const [pdfDoc, setPdfDoc] = useState<any>(null)
   const [pageViewport, setPageViewport] = useState<any>(null)
+  const [calculatedScale, setCalculatedScale] = useState<number>(1.0)
 
   useEffect(() => {
     const loadPdf = async () => {
@@ -50,11 +51,12 @@ export default function PdfPreviewCanvas({
 
   useEffect(() => {
     const renderPage = async () => {
-      if (!pdfDoc || !canvasRef.current || currentPage < 1 || currentPage > totalPages) return
+      if (!pdfDoc || !canvasRef.current || !containerRef.current || currentPage < 1 || currentPage > totalPages) return
 
       try {
         const page = await pdfDoc.getPage(currentPage)
         const canvas = canvasRef.current
+        const container = containerRef.current
         const context = canvas.getContext('2d')
         
         if (!context) {
@@ -62,7 +64,23 @@ export default function PdfPreviewCanvas({
           return
         }
         
-        const viewport = page.getViewport({ scale })
+        // scale이 지정되지 않으면 컨테이너에 맞게 자동 계산
+        let finalScale = scale
+        if (!finalScale) {
+          const containerWidth = container.clientWidth - 32 // padding 고려
+          const containerHeight = container.clientHeight - 32
+          const pageView = page.view
+          
+          // 컨테이너에 맞게 scale 계산 (여백 고려)
+          const scaleX = (containerWidth / pageView.width) * 0.95
+          const scaleY = (containerHeight / pageView.height) * 0.95
+          finalScale = Math.min(scaleX, scaleY, 1.0) // 최대 100%까지만
+          setCalculatedScale(finalScale)
+        } else {
+          setCalculatedScale(finalScale)
+        }
+        
+        const viewport = page.getViewport({ scale: finalScale })
         canvas.height = viewport.height
         canvas.width = viewport.width
         setPageViewport({ viewport, page })
@@ -82,7 +100,11 @@ export default function PdfPreviewCanvas({
     }
 
     if (pdfDoc && totalPages > 0) {
-      renderPage()
+      // 컨테이너 크기 변경 감지를 위한 약간의 지연
+      const timer = setTimeout(() => {
+        renderPage()
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [pdfDoc, currentPage, scale, totalPages])
 
@@ -166,33 +188,31 @@ export default function PdfPreviewCanvas({
             다음
           </button>
         </div>
-        <span className="text-xs text-gray-500">크기: {Math.round(scale * 100)}% (고정)</span>
+        <span className="text-xs text-gray-500">크기: {Math.round(calculatedScale * 100)}% {scale ? '(고정)' : '(자동)'}</span>
       </div>
       <div 
         ref={containerRef}
-        className="relative border-2 border-gray-300 rounded-lg overflow-auto bg-gray-100" 
-        style={{ maxHeight: '600px' }}
+        className="relative border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center" 
+        style={{ height: '600px' }}
       >
-        <div className="flex justify-center p-4">
-          <div className="relative">
-            <canvas 
-              ref={canvasRef} 
-              className="shadow-lg cursor-crosshair" 
-              onClick={handleCanvasClick}
-              title="서명 위치를 클릭하세요"
+        <div className="relative">
+          <canvas 
+            ref={canvasRef} 
+            className="shadow-lg cursor-crosshair" 
+            onClick={handleCanvasClick}
+            title="서명 위치를 클릭하세요"
+          />
+          {/* 현재 위치 마커 */}
+          {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && (
+            <div
+              className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
+              style={{
+                left: `${(currentPosition.x / pageViewport.page.view.width) * canvasRef.current.width}px`,
+                top: `${((pageViewport.page.view.height - currentPosition.y) / pageViewport.page.view.height) * canvasRef.current.height}px`,
+                transform: 'translate(-50%, -50%)',
+              }}
             />
-            {/* 현재 위치 마커 */}
-            {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && (
-              <div
-                className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
-                style={{
-                  left: `${(currentPosition.x / pageViewport.page.view.width) * canvasRef.current.width}px`,
-                  top: `${((pageViewport.page.view.height - currentPosition.y) / pageViewport.page.view.height) * canvasRef.current.height}px`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              />
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
