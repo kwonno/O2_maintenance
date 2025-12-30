@@ -85,8 +85,10 @@ export async function GET(
         // UI에서 표시할 때: top = ((pageHeight - y) / pageHeight) * canvasHeight, transform: translate(-50%, -50%)
         // 즉, 이미지의 중심이 position.y에 오게 표시됨
         // pdf-lib에서도 이미지의 중심이 position.y에 오도록: y = position.y + height/2
+        // 하지만 실제로는 이미지의 상단이 position.y에 오도록 하는 것이 더 정확할 수 있음
         const x = report.signature_position.x || 0
-        const y = (report.signature_position.y || 0) + (height / 2)
+        // 이미지의 상단이 position.y에 오도록: y = position.y + height
+        const y = (report.signature_position.y || 0) + height
         
         page.drawImage(signatureImage, {
           x: x,
@@ -183,9 +185,9 @@ export async function GET(
             const textDims = textImage.scale(0.8) // 크기 조정
             
             // pdf-lib의 drawImage는 y를 하단 기준으로 사용
-            // UI에서도 텍스트의 중심이 yPos에 오도록 표시되므로, 동일하게 맞춤
-            // 텍스트 이미지의 중심이 yPos에 오도록: y = yPos + textDims.height/2
-            const textY = yPos + (textDims.height / 2)
+            // UI에서도 텍스트의 중심이 yPos에 오도록 표시되지만, 실제로는 상단 기준으로 맞춤
+            // 텍스트 이미지의 상단이 yPos에 오도록: y = yPos + textDims.height
+            const textY = yPos + textDims.height
             
             page.drawImage(textImage, {
               x: xPos,

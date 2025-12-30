@@ -215,7 +215,6 @@ function PdfViewerWithSignature({
                 <img 
                   src={signatureData} 
                   alt="서명" 
-                  className="border-2 border-red-500 rounded shadow-lg bg-white p-1"
                   style={{ 
                     width: `${Math.max(80, 100 * calculatedScale)}px`,
                     height: 'auto',
@@ -233,9 +232,7 @@ function PdfViewerWithSignature({
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
-                  <div className="bg-white border-2 border-blue-500 rounded px-2 py-1 shadow-lg">
-                    <span className="text-lg font-bold text-black">{textPosition.text}</span>
-                  </div>
+                  <span className="text-lg font-bold text-black">{textPosition.text}</span>
                 </div>
               )}
               {signatureName && !textPosition && namePosition && (
@@ -247,9 +244,7 @@ function PdfViewerWithSignature({
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
-                  <div className="bg-white border-2 border-blue-500 rounded px-2 py-1 shadow-lg">
-                    <span className="text-lg font-bold text-black">{signatureName}</span>
-                  </div>
+                  <span className="text-lg font-bold text-black">{signatureName}</span>
                 </div>
               )}
             </>
