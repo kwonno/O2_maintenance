@@ -35,3 +35,4 @@ export async function isOperatorAdminByUserId(userId: string) {
   return !!(data && data.length > 0)
 }
 
+

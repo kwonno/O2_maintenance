@@ -71,7 +71,12 @@ export async function GET(
         const page = pages[report.signature_position.page - 1]
         
         // 서명 이미지 추가
-        const signatureImage = await pdfDoc.embedPng(report.signature_data.split(',')[1] || report.signature_data)
+        // signature_data는 base64 문자열이거나 data URL일 수 있음
+        let signatureImageData = report.signature_data
+        if (signatureImageData.includes(',')) {
+          signatureImageData = signatureImageData.split(',')[1]
+        }
+        const signatureImage = await pdfDoc.embedPng(Buffer.from(signatureImageData, 'base64'))
         const { width, height } = signatureImage.scale(0.3) // 서명 크기 조정
         
         const x = report.signature_position.x || 0
@@ -119,4 +124,5 @@ export async function GET(
     )
   }
 }
+
 

@@ -15,3 +15,4 @@ WHERE title IS NULL;
 ALTER TABLE inspections
   ADD COLUMN IF NOT EXISTS title TEXT;
 
+

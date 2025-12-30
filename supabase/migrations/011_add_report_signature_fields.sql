@@ -12,3 +12,4 @@ ALTER TABLE inspection_reports
 CREATE INDEX IF NOT EXISTS idx_inspection_reports_signature_status ON inspection_reports(signature_status);
 CREATE INDEX IF NOT EXISTS idx_inspection_reports_file_type ON inspection_reports(file_type);
 
+

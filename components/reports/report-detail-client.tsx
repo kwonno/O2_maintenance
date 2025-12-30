@@ -6,9 +6,10 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// PDF.js worker 설정 - unpkg CDN 사용 (더 안정적)
+// PDF.js worker 설정 - 로컬 파일 사용 (가장 안정적)
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`
+  // 로컬 public 폴더의 worker 파일 사용 (CDN 문제 방지)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 }
 
 // PDF 뷰어 컴포넌트 (PDF.js 사용)

@@ -113,3 +113,4 @@ node scripts/create-admin-user.js
 1. tenant_users 테이블에서 role이 올바른지 확인
 2. operator_admin 권한이 필요한 경우 role 확인
 
+
