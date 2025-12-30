@@ -22,6 +22,7 @@ export default function PdfPreviewCanvas({
   scale = 1.0,
 }: PdfPreviewCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
   const [pdfDoc, setPdfDoc] = useState<any>(null)
@@ -86,12 +87,18 @@ export default function PdfPreviewCanvas({
   }, [pdfDoc, currentPage, scale, totalPages])
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || !pageViewport) return
+    if (!canvasRef.current || !pageViewport || !containerRef.current) return
 
     const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const clickY = e.clientY - rect.top
+    const container = containerRef.current
+    
+    // 캔버스의 실제 위치 (스크롤 고려)
+    const canvasRect = canvas.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    
+    // 클릭 위치를 캔버스 좌표로 변환 (스크롤 오프셋 포함)
+    const clickX = e.clientX - canvasRect.left
+    const clickY = e.clientY - canvasRect.top
 
     // PDF 좌표로 변환
     const { viewport, page } = pageViewport
@@ -102,9 +109,29 @@ export default function PdfPreviewCanvas({
     // Y 좌표는 PDF 좌표계(하단이 0)로 변환하여 저장
     const pdfY = pageSize.height - ((clickY / viewport.height) * pageSize.height)
 
+    const roundedX = Math.round(pdfX)
+    const roundedY = Math.round(pdfY)
+
+    console.log('클릭 좌표:', { 
+      clientX: e.clientX, 
+      clientY: e.clientY,
+      canvasLeft: canvasRect.left,
+      canvasTop: canvasRect.top,
+      clickX, 
+      clickY, 
+      viewportWidth: viewport.width,
+      viewportHeight: viewport.height,
+      pageSizeWidth: pageSize.width,
+      pageSizeHeight: pageSize.height,
+      pdfX, 
+      pdfY, 
+      roundedX, 
+      roundedY 
+    })
+
     onPositionSelect({
-      x: Math.round(pdfX),
-      y: Math.round(pdfY),
+      x: roundedX,
+      y: roundedY,
       page: currentPage,
     })
   }
@@ -141,7 +168,11 @@ export default function PdfPreviewCanvas({
         </div>
         <span className="text-xs text-gray-500">크기: {Math.round(scale * 100)}% (고정)</span>
       </div>
-      <div className="relative border-2 border-gray-300 rounded-lg overflow-auto bg-gray-100" style={{ maxHeight: '600px' }}>
+      <div 
+        ref={containerRef}
+        className="relative border-2 border-gray-300 rounded-lg overflow-auto bg-gray-100" 
+        style={{ maxHeight: '600px' }}
+      >
         <div className="flex justify-center p-4">
           <div className="relative">
             <canvas 
@@ -151,7 +182,7 @@ export default function PdfPreviewCanvas({
               title="서명 위치를 클릭하세요"
             />
             {/* 현재 위치 마커 */}
-            {currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && (
+            {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && (
               <div
                 className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
                 style={{
