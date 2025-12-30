@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const signaturePositionX = formData.get('signature_position_x') as string
     const signaturePositionY = formData.get('signature_position_y') as string
     const signaturePositionPage = formData.get('signature_position_page') as string
-    const signatureName = formData.get('signature_name') as string
+    const enableNamePosition = formData.get('enable_name_position') === 'true'
     const namePositionX = formData.get('name_position_x') as string
     const namePositionY = formData.get('name_position_y') as string
 
@@ -123,13 +123,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 서명자 이름 및 이름 위치 설정
+    // 이름 위치 설정 (enable_name_position이 true일 때만)
     let textPosition = null
-    if (signatureName && namePositionX && namePositionY) {
+    if (enableNamePosition && namePositionX && namePositionY) {
       textPosition = {
         x: parseInt(namePositionX) || 0,
         y: parseInt(namePositionY) || 0,
-        text: signatureName,
+        text: '', // 이름은 검수 시 입력
       }
     }
 
@@ -145,9 +145,7 @@ export async function POST(request: NextRequest) {
       signature_position: signaturePosition,
     }
 
-    if (signatureName) {
-      reportData.signature_name = signatureName
-    }
+    // 이름 위치만 저장 (이름 자체는 검수 시 입력)
 
     if (textPosition) {
       reportData.text_position = textPosition

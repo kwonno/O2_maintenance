@@ -18,7 +18,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
     signature_position_x: 0,
     signature_position_y: 0,
     signature_position_page: 1,
-    signature_name: '',
+    enable_name_position: false,
     name_position_x: 0,
     name_position_y: 0,
   })
@@ -51,8 +51,8 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
       formDataToSend.append('signature_position_x', formData.signature_position_x.toString())
       formDataToSend.append('signature_position_y', formData.signature_position_y.toString())
       formDataToSend.append('signature_position_page', formData.signature_position_page.toString())
-      if (formData.signature_name) {
-        formDataToSend.append('signature_name', formData.signature_name)
+      formDataToSend.append('enable_name_position', formData.enable_name_position.toString())
+      if (formData.enable_name_position) {
         formDataToSend.append('name_position_x', formData.name_position_x.toString())
         formDataToSend.append('name_position_y', formData.name_position_y.toString())
       }
@@ -80,7 +80,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
         signature_position_x: 0,
         signature_position_y: 0,
         signature_position_page: 1,
-        signature_name: '',
+        enable_name_position: false,
         name_position_x: 0,
         name_position_y: 0,
       })
@@ -208,21 +208,17 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
               </label>
             </div>
           </div>
-          {positionMode === 'name' && (
-            <div className="mb-3">
-              <label htmlFor="signature_name" className="block text-sm font-medium text-gray-700 mb-1">
-                서명자 이름
-              </label>
+          <div className="mb-3">
+            <label className="flex items-center">
               <input
-                id="signature_name"
-                type="text"
-                value={formData.signature_name}
-                onChange={(e) => setFormData({ ...formData, signature_name: e.target.value })}
-                placeholder="예: 홍길동"
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                type="checkbox"
+                checked={formData.enable_name_position}
+                onChange={(e) => setFormData({ ...formData, enable_name_position: e.target.checked })}
+                className="mr-2"
               />
-            </div>
-          )}
+              <span className="text-sm text-gray-700">이름 위치 설정 (PDF/엑셀에 이름이 없을 경우에만 사용)</span>
+            </label>
+          </div>
           <p className="text-xs text-gray-600 mb-3">
             아래 미리보기에서 {positionMode === 'signature' ? '서명할' : '이름을 표시할'} 위치를 클릭하세요. 클릭한 위치가 자동으로 설정됩니다.
           </p>

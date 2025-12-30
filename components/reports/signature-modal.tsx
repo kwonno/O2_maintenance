@@ -125,7 +125,23 @@ export default function SignatureModal({ isOpen, onClose, onSave, reportId, defa
       return
     }
 
-    await onSave(signatureData, signatureType, position, signatureName || undefined, textPosition || undefined)
+    // 클릭한 위치가 있으면 그 위치 사용, 없으면 기본 위치 사용
+    const finalPosition = clickedPosition || position
+    
+    // 이름 텍스트 위치 설정 (이름이 있고 텍스트 위치가 설정된 경우)
+    let finalTextPosition = null
+    if (signatureName && showTextInput && textPosition && textPosition.text) {
+      finalTextPosition = textPosition
+    } else if (signatureName && showTextInput) {
+      // 이름이 있고 텍스트 위치 설정이 활성화되어 있으면, 서명 위치 옆에 자동 배치
+      finalTextPosition = {
+        x: finalPosition.x + 50, // 서명 위치에서 오른쪽으로 50포인트
+        y: finalPosition.y,
+        text: signatureName,
+      }
+    }
+
+    await onSave(signatureData, signatureType, finalPosition, signatureName || undefined, finalTextPosition || undefined)
   }
 
   if (!isOpen) return null
