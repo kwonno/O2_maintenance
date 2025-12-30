@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
+import PdfPreviewCanvas from './pdf-preview-canvas'
 
 interface FilePreviewWithSignatureProps {
   file: File | null
@@ -165,79 +166,17 @@ export default function FilePreviewWithSignature({
         </p>
       </div>
 
-      {fileType === 'pdf' && previewUrl && (
+      {fileType === 'pdf' && file && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">페이지 선택:</label>
-            <div className="flex items-center space-x-4">
-              <button
-                type="button"
-                onClick={() => setClickMode(!clickMode)}
-                className={`px-3 py-1 text-sm border rounded ${
-                  clickMode 
-                    ? 'bg-[#F12711] text-white border-[#F12711]' 
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {clickMode ? '✓ 클릭 모드 활성화' : '클릭 모드'}
-              </button>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => handlePdfPageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage <= 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
-                >
-                  이전
-                </button>
-                <span className="text-sm text-gray-700">
-                  페이지 {currentPage}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handlePdfPageChange(currentPage + 1)}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded"
-                >
-                  다음
-                </button>
-              </div>
-            </div>
+          <div className="bg-yellow-50 p-2 rounded text-sm text-yellow-800">
+            PDF에서 서명할 위치를 클릭하세요. (크기 고정: 100%)
           </div>
-          {clickMode && (
-            <div className="bg-yellow-50 p-2 rounded text-sm text-yellow-800">
-              클릭 모드가 활성화되었습니다. PDF에서 서명할 위치를 클릭하세요.
-            </div>
-          )}
-          <div
-            ref={previewRef}
-            className="relative border-2 border-gray-300 rounded-lg overflow-auto"
-            style={{ height: '600px' }}
-          >
-            <iframe
-              ref={iframeRef}
-              src={`${previewUrl}#page=${currentPage}`}
-              className="w-full h-full"
-              title="PDF 미리보기"
-              style={{ pointerEvents: clickMode ? 'none' : 'auto' }}
-            />
-            {/* 클릭 모드일 때만 오버레이 표시 */}
-            {clickMode && (
-              <div
-                className="absolute inset-0 cursor-crosshair z-10"
-                onClick={handleClick}
-              />
-            )}
-            {currentPosition.x > 0 && currentPosition.y > 0 && currentPosition.page === currentPage && (
-              <div
-                className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
-                style={{
-                  left: `${currentPosition.x}px`,
-                  top: `${currentPosition.y}px`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              />
-            )}
-          </div>
+          <PdfPreviewCanvas
+            file={file}
+            onPositionSelect={onPositionSelect}
+            currentPosition={currentPosition}
+            scale={1.0} // 고정 scale (검수 시와 동일)
+          />
         </div>
       )}
 

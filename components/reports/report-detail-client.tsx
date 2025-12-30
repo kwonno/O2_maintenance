@@ -28,7 +28,7 @@ function PdfViewerWithSignature({
   const containerRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
-  const [scale, setScale] = useState(1.5)
+  const [scale, setScale] = useState(1.0) // 고정 scale (보고서 생성 시와 동일)
   const [pdfDoc, setPdfDoc] = useState<any>(null)
   const [pageViewport, setPageViewport] = useState<any>(null)
 
@@ -161,19 +161,7 @@ function PdfViewerWithSignature({
           </button>
         </div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setScale(Math.max(0.5, scale - 0.25))}
-            className="px-2 py-1 bg-white border rounded"
-          >
-            -
-          </button>
-          <span className="text-sm">{Math.round(scale * 100)}%</span>
-          <button
-            onClick={() => setScale(Math.min(3, scale + 0.25))}
-            className="px-2 py-1 bg-white border rounded"
-          >
-            +
-          </button>
+          <span className="text-sm text-gray-600">크기: {Math.round(scale * 100)}% (고정)</span>
         </div>
       </div>
 
