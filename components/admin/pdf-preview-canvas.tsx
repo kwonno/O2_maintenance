@@ -71,14 +71,15 @@ export default function PdfPreviewCanvas({
         const containerWidth = container.clientWidth || 800
         const containerHeight = container.clientHeight || 600
         
+        // PDF 문서의 실제 크기 가져오기 (scale 1.0으로)
+        const actualViewport = page.getViewport({ scale: 1.0 })
+        
         // scale이 지정되지 않으면 컨테이너에 맞게 자동 계산
         let finalScale = scale
         if (!finalScale) {
-          const pageView = page.view
-          
           // 컨테이너에 맞게 scale 계산 (여백 고려)
-          const scaleX = ((containerWidth - 32) / pageView.width) * 0.95
-          const scaleY = ((containerHeight - 32) / pageView.height) * 0.95
+          const scaleX = ((containerWidth - 32) / actualViewport.width) * 0.95
+          const scaleY = ((containerHeight - 32) / actualViewport.height) * 0.95
           finalScale = Math.min(scaleX, scaleY, 1.0) // 최대 100%까지만
           
           if (isNaN(finalScale) || finalScale <= 0) {
@@ -93,7 +94,7 @@ export default function PdfPreviewCanvas({
         const viewport = page.getViewport({ scale: finalScale })
         canvas.height = viewport.height
         canvas.width = viewport.width
-        setPageViewport({ viewport, page })
+        setPageViewport({ viewport, page, actualViewport })
 
         // 캔버스 초기화
         context.clearRect(0, 0, canvas.width, canvas.height)
@@ -133,21 +134,20 @@ export default function PdfPreviewCanvas({
     const clickY = e.clientY - canvasRect.top
 
     // PDF 문서의 실제 좌표로 변환 (포인트 단위)
-    const { viewport, page } = pageViewport
-    const pageView = page.view // PDF 문서의 실제 크기 (포인트)
+    const { viewport, actualViewport } = pageViewport
     
     // 화면 좌표를 PDF 문서 좌표로 변환
     // viewport는 scale이 적용된 크기이므로, 비율로 계산
-    const pdfX = (clickX / viewport.width) * pageView.width
+    const pdfX = (clickX / viewport.width) * actualViewport.width
     // Y 좌표는 PDF 좌표계(하단이 0)로 변환
-    const pdfY = pageView.height - ((clickY / viewport.height) * pageView.height)
+    const pdfY = actualViewport.height - ((clickY / viewport.height) * actualViewport.height)
 
     const roundedX = Math.round(pdfX)
     const roundedY = Math.round(pdfY)
 
     console.log('클릭 좌표 (PDF 문서 위치):', { 
       화면좌표: { clickX, clickY },
-      PDF문서크기: { width: pageView.width, height: pageView.height },
+      PDF문서크기: { width: actualViewport.width, height: actualViewport.height },
       PDF문서좌표: { pdfX, pdfY },
       최종좌표: { roundedX, roundedY },
       페이지: currentPage
@@ -207,12 +207,12 @@ export default function PdfPreviewCanvas({
             title="서명 위치를 클릭하세요"
           />
           {/* 현재 위치 마커 - PDF 문서 좌표를 화면 좌표로 변환 */}
-          {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x >= 0 && currentPosition.y >= 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && pageViewport.page && pageViewport.page.view && (
+          {!isNaN(currentPosition.x) && !isNaN(currentPosition.y) && currentPosition.x >= 0 && currentPosition.y >= 0 && currentPosition.page === currentPage && canvasRef.current && pageViewport && pageViewport.actualViewport && (
             <div
               className="absolute w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow-lg pointer-events-none z-20"
               style={{
-                left: `${(currentPosition.x / pageViewport.page.view.width) * canvasRef.current.width}px`,
-                top: `${((pageViewport.page.view.height - currentPosition.y) / pageViewport.page.view.height) * canvasRef.current.height}px`,
+                left: `${(currentPosition.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
+                top: `${((pageViewport.actualViewport.height - currentPosition.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`,
                 transform: 'translate(-50%, -50%)',
               }}
             />
