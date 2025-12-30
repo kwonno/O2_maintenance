@@ -84,9 +84,20 @@ export async function GET(
         // 저장된 좌표는 클릭한 위치 (PDF 문서 좌표, 하단이 0)
         // UI에서 표시할 때: top = ((pageHeight - y) / pageHeight) * canvasHeight, transform: translate(-50%, -50%)
         // 즉, 이미지의 중심이 position.y에 오게 표시됨
-        // pdf-lib에서도 이미지의 중심이 position.y에 오도록: y = position.y + height/2
+        // pdf-lib에서 이미지의 중심이 position.y에 오도록 하려면:
+        // - 이미지의 하단이 position.y - height/2에 위치해야 함
+        // - 하지만 pdf-lib는 y를 하단 기준으로 사용하므로: y = position.y - height/2
         const x = report.signature_position.x || 0
-        const y = (report.signature_position.y || 0) + (height / 2)
+        // 이미지의 중심이 position.y에 오도록: y = position.y - height/2
+        const y = (report.signature_position.y || 0) - (height / 2)
+        
+        console.log('서명 위치 계산:', {
+          저장된좌표: { x: report.signature_position.x, y: report.signature_position.y },
+          이미지크기: { width, height },
+          계산된y: y,
+          페이지높이: pageHeight,
+          이미지중심예상위치: (report.signature_position.y || 0)
+        })
         
         page.drawImage(signatureImage, {
           x: x,
@@ -184,8 +195,15 @@ export async function GET(
             
             // pdf-lib의 drawImage는 y를 하단 기준으로 사용
             // UI에서도 텍스트의 중심이 yPos에 오도록 표시됨 (transform: translate(-50%, -50%))
-            // pdf-lib에서도 텍스트 이미지의 중심이 yPos에 오도록: y = yPos + textDims.height/2
-            const textY = yPos + (textDims.height / 2)
+            // pdf-lib에서 텍스트 이미지의 중심이 yPos에 오도록: y = yPos - textDims.height/2
+            const textY = yPos - (textDims.height / 2)
+            
+            console.log('텍스트 위치 계산:', {
+              저장된좌표: { x: xPos, y: yPos },
+              텍스트이미지크기: { width: textDims.width, height: textDims.height },
+              계산된y: textY,
+              텍스트중심예상위치: yPos
+            })
             
             page.drawImage(textImage, {
               x: xPos,
