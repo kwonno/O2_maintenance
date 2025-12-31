@@ -77,27 +77,8 @@ export default function FilePreviewWithSignature({
       // 워크시트 데이터 저장 (셀 좌표 변환에 사용)
       setWorksheetData(worksheet)
       
-      // HTML로 변환 (더 정확한 스타일링을 위해)
-      let html = XLSX.utils.sheet_to_html(worksheet, {
-        id: 'excel-preview',
-        editable: false,
-      })
-      
-      // HTML에 셀 좌표 정보 추가 및 스타일 개선
-      // 엑셀 테이블을 더 정확하게 렌더링하기 위해 스타일 추가
-      html = html.replace(
-        '<table',
-        `<table style="border-collapse: collapse; font-family: '맑은 고딕', 'Malgun Gothic', Arial, sans-serif; font-size: 11pt;" cellpadding="0" cellspacing="0"`
-      )
-      
-      // 각 셀에 data 속성 추가 (셀 주소 정보)
-      const cellRegex = /<td[^>]*>/g
-      let cellIndex = 0
-      html = html.replace(cellRegex, (match) => {
-        // 셀 주소 계산 (대략적인 방법)
-        // 실제로는 XLSX의 셀 범위를 파싱해야 하지만, 간단하게 처리
-        return match
-      })
+      // HTML로 직접 렌더링 (병합셀 반영 + data-r/data-c 심기)
+      const html = renderWorksheetToHtml(worksheet)
       
       setExcelHtml(html)
     } catch (error: any) {
@@ -137,10 +118,8 @@ export default function FilePreviewWithSignature({
         
         const firstSheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[firstSheetName]
-        const html = XLSX.utils.sheet_to_html(worksheet, {
-          id: 'excel-preview',
-          editable: false,
-        })
+        setWorksheetData(worksheet)
+        const html = renderWorksheetToHtml(worksheet)
         setExcelHtml(html)
       } catch (retryError: any) {
         setExcelHtml(`<div class="p-4"><p class="text-red-600">엑셀 파일을 불러올 수 없습니다: ${retryError.message || error.message || '알 수 없는 오류'}</p><p class="text-xs text-gray-500 mt-2">파일 형식을 확인해주세요.</p></div>`)
@@ -148,10 +127,20 @@ export default function FilePreviewWithSignature({
     }
   }
 
+  // HTML 이스케이프
+  const escapeHtml = (s: string) => {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+  }
+
   // 셀 주소를 숫자로 변환 (예: A1 -> {col: 0, row: 0}, F35 -> {col: 5, row: 34})
   const cellAddressToCoord = (address: string) => {
     const match = address.match(/^([A-Z]+)(\d+)$/)
-    if (!match) return null
+    if (!match) return { col: 0, row: 0 }
     
     const colStr = match[1]
     const rowStr = parseInt(match[2])
@@ -176,6 +165,72 @@ export default function FilePreviewWithSignature({
       tempCol = Math.floor((tempCol - 1) / 26)
     }
     return `${colStr}${row + 1}` // row는 1-based
+  }
+
+  // ws['!ref'] -> range 디코드
+  const decodeRef = (ref?: string) => {
+    if (!ref) return { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } }
+    const parts = ref.split(':')
+    const sAddr = parts[0]
+    const eAddr = parts[1] || parts[0]
+    const s = cellAddressToCoord(sAddr)
+    const e = cellAddressToCoord(eAddr)
+    return { s: { r: s.row, c: s.col }, e: { r: e.row, c: e.col } } // 0-based
+  }
+
+  // 엑셀 워크시트를 HTML로 직접 렌더링(+ 병합셀 반영 + data-r/data-c 심기)
+  const renderWorksheetToHtml = (ws: any) => {
+    const ref = decodeRef(ws['!ref'])
+    const merges = (ws['!merges'] ?? []) as Array<{ s: { r: number; c: number }, e: { r: number; c: number } }>
+
+    // merge 시작셀 -> {rowspan,colspan}
+    const mergeStart = new Map<string, { rs: number; cs: number }>()
+    // merge에 덮이는 셀(시작셀 제외) skip
+    const covered = new Set<string>()
+
+    for (const m of merges) {
+      const rs = m.e.r - m.s.r + 1
+      const cs = m.e.c - m.s.c + 1
+      mergeStart.set(`${m.s.r},${m.s.c}`, { rs, cs })
+      for (let r = m.s.r; r <= m.e.r; r++) {
+        for (let c = m.s.c; c <= m.e.c; c++) {
+          if (r === m.s.r && c === m.s.c) continue
+          covered.add(`${r},${c}`)
+        }
+      }
+    }
+
+    const rowCount = ref.e.r - ref.s.r + 1
+    const colCount = ref.e.c - ref.s.c + 1
+    // 너무 큰 시트 방어
+    if (rowCount * colCount > 20000) {
+      return `<div style="padding:12px;color:#666;">시트가 너무 커서( ${rowCount}x${colCount} ) 미리보기를 단순화해야 합니다.</div>`
+    }
+
+    let html = `<table class="excel-preview-table" style="border-collapse: collapse; font-family: '맑은 고딕', 'Malgun Gothic', Arial, sans-serif; font-size: 11pt;" cellpadding="0" cellspacing="0"><tbody>`
+    for (let r = ref.s.r; r <= ref.e.r; r++) {
+      html += `<tr>`
+      for (let c = ref.s.c; c <= ref.e.c; c++) {
+        const key = `${r},${c}`
+        if (covered.has(key)) continue
+
+        const m = mergeStart.get(key)
+        const rs = m?.rs ?? 1
+        const cs = m?.cs ?? 1
+
+        const addr = coordToCellAddress(c, r) // 0-based -> A1
+        const cell = ws[addr]
+        const value = cell?.w ?? (cell?.v != null ? String(cell.v) : '')
+
+        html += `<td data-r="${r}" data-c="${c}" data-addr="${addr}"`
+        if (rs > 1) html += ` rowspan="${rs}"`
+        if (cs > 1) html += ` colspan="${cs}"`
+        html += `>${escapeHtml(value)}</td>`
+      }
+      html += `</tr>`
+    }
+    html += `</tbody></table>`
+    return html
   }
 
   // 엑셀 포인트 좌표를 셀 좌표로 변환
@@ -206,57 +261,60 @@ export default function FilePreviewWithSignature({
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!previewRef.current) return
 
+    // 엑셀 파일인 경우 병합셀 처리
+    if ((fileType === 'xlsx' || fileType === 'xls') && worksheetData) {
+      const td = (e.target as HTMLElement).closest('td') as HTMLTableCellElement | null
+      if (!td) return
+
+      const startR = Number(td.dataset.r ?? '0')
+      const startC = Number(td.dataset.c ?? '0')
+      const cs = td.colSpan || 1
+      const rs = td.rowSpan || 1
+
+      const rect = td.getBoundingClientRect()
+      const xIn = e.clientX - rect.left
+      const yIn = e.clientY - rect.top
+
+      // colspan/rowspan 내부를 "가상 셀"로 분할해서 클릭한 칸 계산
+      const cOffset = Math.min(cs - 1, Math.floor((xIn / rect.width) * cs))
+      const rOffset = Math.min(rs - 1, Math.floor((yIn / rect.height) * rs))
+
+      const realC = startC + cOffset
+      const realR = startR + rOffset
+
+      const cellAddress = coordToCellAddress(realC, realR)
+      setSelectedCell({ col: realC, row: realR, address: cellAddress })
+
+      // 포인트 좌표는 참고용
+      const point = cellCoordToPoint(realC, realR)
+      onPositionSelect({
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+        page: currentPage,
+        cell: cellAddress, // 셀 주소 추가
+      })
+
+      console.log('엑셀 셀 클릭 (병합셀 처리):', {
+        cellAddress,
+        col: realC + 1,
+        row: realR + 1,
+        startCell: coordToCellAddress(startC, startR),
+        colspan: cs,
+        rowspan: rs,
+        cOffset,
+        rOffset,
+        point: { x: point.x, y: point.y }
+      })
+      return
+    }
+
+    // PDF 파일인 경우 기존 방식 사용
     const rect = previewRef.current.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const clickY = e.clientY - rect.top
 
-    // 클릭한 요소가 셀인지 확인
-    const target = e.target as HTMLElement
-    const td = target.closest('td')
-    
-    if (td && worksheetData) {
-      // 테이블에서 셀 위치 찾기
-      const table = td.closest('table')
-      if (table) {
-        const rows = Array.from(table.querySelectorAll('tr'))
-        const rowIndex = rows.findIndex(row => row.contains(td))
-        const cells = Array.from(rows[rowIndex]?.querySelectorAll('td') || [])
-        const colIndex = cells.findIndex(cell => cell === td)
-        
-        if (rowIndex >= 0 && colIndex >= 0) {
-          // 엑셀 파일이므로 셀 주소를 직접 사용
-          const cellAddress = coordToCellAddress(colIndex, rowIndex)
-          
-          setSelectedCell({ col: colIndex, row: rowIndex, address: cellAddress })
-          
-          // 엑셀 파일이므로 셀 주소를 포함하여 전달 (포인트 좌표는 참고용)
-          const point = cellCoordToPoint(colIndex, rowIndex)
-          onPositionSelect({
-            x: Math.round(point.x),
-            y: Math.round(point.y),
-            page: currentPage,
-            cell: cellAddress, // 셀 주소 추가
-          })
-          
-          console.log('셀 클릭:', { 
-            cellAddress, 
-            col: colIndex, 
-            row: rowIndex, 
-            point: { x: point.x, y: point.y } 
-          })
-          return
-        }
-      }
-    }
-
-    // 셀이 아닌 곳을 클릭한 경우 기존 방식 사용
     const x = Math.round(clickX)
     const y = Math.round(clickY)
-    
-    // 포인트 좌표를 셀 좌표로 변환하여 표시
-    const cellCoord = pointToCellCoord(x, y)
-    const cellAddress = coordToCellAddress(cellCoord.col, cellCoord.row)
-    setSelectedCell({ ...cellCoord, address: cellAddress })
 
     onPositionSelect({
       x,

@@ -290,18 +290,18 @@ export async function GET(
         )
       }
       
-      // 셀 주소를 파싱하는 함수 (예: "F35" -> {col: 5, row: 34})
+      // 셀 주소를 파싱하는 함수 (예: "F35" -> {col: 5, row: 34} 0-based)
       const parseCellAddress = (cellAddress: string): { col: number; row: number } | null => {
-        const match = cellAddress.match(/^([A-Z]+)(\d+)$/)
+        const match = cellAddress.match(/^([A-Z]+)(\d+)$/i)
         if (!match) return null
         
-        const colStr = match[1]
-        const rowStr = parseInt(match[2])
+        const colStr = match[1].toUpperCase()
+        const rowStr = parseInt(match[2], 10)
         
-        // 컬럼 문자를 숫자로 변환 (A=0, B=1, ..., Z=25, AA=26, ...)
+        // 컬럼 문자를 숫자로 변환 (A=1, B=2, ..., Z=26, AA=27, ...)
         let col = 0
-        for (let i = 0; i < colStr.length; i++) {
-          col = col * 26 + (colStr.charCodeAt(i) - 64)
+        for (const ch of colStr) {
+          col = col * 26 + (ch.charCodeAt(0) - 64)
         }
         col -= 1 // 0-based index
         
@@ -336,6 +336,7 @@ export async function GET(
             // 셀 주소 직접 사용 (예: "F35")
             const cellCoord = parseCellAddress(report.signature_position.cell)
             if (cellCoord) {
+              // exceljs는 0-based col, row를 사용
               col = cellCoord.col
               row = cellCoord.row
               console.log('엑셀 서명 이미지 - 셀 주소 사용:', { 
@@ -361,6 +362,7 @@ export async function GET(
             console.log('엑셀 서명 이미지 - 포인트 좌표 변환:', { x, y, col: col + 1, row: row + 1 })
           }
           
+          // exceljs는 0-based col, row를 사용하므로 그대로 사용
           worksheet.addImage(imageId, {
             tl: { col, row },
             ext: { width: imageWidth, height: imageHeight },
