@@ -92,6 +92,7 @@ export async function POST(
     }
 
     if (position) {
+      // cell 정보가 있으면 포함하여 저장
       updateData.signature_position = position
     }
 
@@ -105,14 +106,19 @@ export async function POST(
 
     // 이름 위치 설정: 사용자가 찍은 textPosition이 최우선
     // 1) 사용자가 찍어 보낸 textPosition이 있으면 그걸 최우선으로 사용
-    if (textPosition && textPosition.x !== undefined && textPosition.y !== undefined) {
+    if (textPosition && (textPosition.x !== undefined && textPosition.y !== undefined || (textPosition as any).cell)) {
       updateData.text_position = {
         ...textPosition,
         text: signatureName || textPosition.text,
       }
       // 이름 위치도 별도로 저장 (다음 검수 시 기본값으로 사용)
-      updateData.name_position_x = textPosition.x
-      updateData.name_position_y = textPosition.y
+      // cell 정보가 있으면 우선 사용, 없으면 x, y 사용
+      if ((textPosition as any).cell) {
+        // cell 정보는 text_position에만 저장 (name_position_x/y는 포인트 좌표용)
+      } else if (textPosition.x !== undefined && textPosition.y !== undefined) {
+        updateData.name_position_x = textPosition.x
+        updateData.name_position_y = textPosition.y
+      }
     } 
     // 2) 없을 때만, 기존 report에 저장된 기본 위치로 fallback
     else if (signatureName && report.name_position_x !== undefined && report.name_position_y !== undefined) {

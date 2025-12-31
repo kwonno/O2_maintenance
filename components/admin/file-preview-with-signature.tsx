@@ -6,8 +6,8 @@ import PdfPreviewCanvas from './pdf-preview-canvas'
 
 interface FilePreviewWithSignatureProps {
   file: File | null
-  onPositionSelect: (position: { x: number; y: number; page: number }) => void
-  currentPosition: { x: number; y: number; page: number }
+  onPositionSelect: (position: { x: number; y: number; page: number; cell?: string }) => void
+  currentPosition: { x: number; y: number; page: number; cell?: string }
 }
 
 export default function FilePreviewWithSignature({
@@ -224,16 +224,18 @@ export default function FilePreviewWithSignature({
         const colIndex = cells.findIndex(cell => cell === td)
         
         if (rowIndex >= 0 && colIndex >= 0) {
-          // 셀 좌표를 엑셀 포인트 좌표로 변환
-          const point = cellCoordToPoint(colIndex, rowIndex)
+          // 엑셀 파일이므로 셀 주소를 직접 사용
           const cellAddress = coordToCellAddress(colIndex, rowIndex)
           
           setSelectedCell({ col: colIndex, row: rowIndex, address: cellAddress })
           
+          // 엑셀 파일이므로 셀 주소를 포함하여 전달 (포인트 좌표는 참고용)
+          const point = cellCoordToPoint(colIndex, rowIndex)
           onPositionSelect({
             x: Math.round(point.x),
             y: Math.round(point.y),
             page: currentPage,
+            cell: cellAddress, // 셀 주소 추가
           })
           
           console.log('셀 클릭:', { 

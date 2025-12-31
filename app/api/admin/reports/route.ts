@@ -23,9 +23,11 @@ export async function POST(request: NextRequest) {
     const signaturePositionX = formData.get('signature_position_x') as string
     const signaturePositionY = formData.get('signature_position_y') as string
     const signaturePositionPage = formData.get('signature_position_page') as string
+    const signaturePositionCell = formData.get('signature_position_cell') as string // 엑셀 셀 주소
     const enableNamePosition = formData.get('enable_name_position') === 'true'
     const namePositionX = formData.get('name_position_x') as string
     const namePositionY = formData.get('name_position_y') as string
+    const namePositionCell = formData.get('name_position_cell') as string // 엑셀 셀 주소
 
     if (!tenant_id || !title || !inspection_date) {
       return NextResponse.json(
@@ -115,7 +117,16 @@ export async function POST(request: NextRequest) {
 
     // 서명 위치 설정
     let signaturePosition = null
-    if (signaturePositionX && signaturePositionY && signaturePositionPage) {
+    if (signaturePositionCell) {
+      // 엑셀 파일인 경우 셀 주소 사용
+      signaturePosition = {
+        x: parseInt(signaturePositionX) || 0, // 참고용
+        y: parseInt(signaturePositionY) || 0, // 참고용
+        page: parseInt(signaturePositionPage) || 1,
+        cell: signaturePositionCell, // 셀 주소 (예: "F35")
+      }
+    } else if (signaturePositionX && signaturePositionY && signaturePositionPage) {
+      // PDF 파일인 경우 포인트 좌표 사용
       signaturePosition = {
         x: parseInt(signaturePositionX) || 0,
         y: parseInt(signaturePositionY) || 0,
@@ -125,11 +136,22 @@ export async function POST(request: NextRequest) {
 
     // 이름 위치 설정 (enable_name_position이 true일 때만)
     let textPosition = null
-    if (enableNamePosition && namePositionX && namePositionY) {
-      textPosition = {
-        x: parseInt(namePositionX) || 0,
-        y: parseInt(namePositionY) || 0,
-        text: '', // 이름은 검수 시 입력
+    if (enableNamePosition) {
+      if (namePositionCell) {
+        // 엑셀 파일인 경우 셀 주소 사용
+        textPosition = {
+          x: parseInt(namePositionX) || 0, // 참고용
+          y: parseInt(namePositionY) || 0, // 참고용
+          text: '', // 이름은 검수 시 입력
+          cell: namePositionCell, // 셀 주소 (예: "G35")
+        }
+      } else if (namePositionX && namePositionY) {
+        // PDF 파일인 경우 포인트 좌표 사용
+        textPosition = {
+          x: parseInt(namePositionX) || 0,
+          y: parseInt(namePositionY) || 0,
+          text: '', // 이름은 검수 시 입력
+        }
       }
     }
 

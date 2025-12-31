@@ -18,9 +18,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
     signature_position_x: 0,
     signature_position_y: 0,
     signature_position_page: 1,
+    signature_position_cell: '', // 엑셀 셀 주소
     enable_name_position: false,
     name_position_x: 0,
     name_position_y: 0,
+    name_position_cell: '', // 엑셀 셀 주소
   })
   const [positionMode, setPositionMode] = useState<'signature' | 'name'>('signature')
   const [file, setFile] = useState<File | null>(null)
@@ -51,10 +53,16 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
       formDataToSend.append('signature_position_x', formData.signature_position_x.toString())
       formDataToSend.append('signature_position_y', formData.signature_position_y.toString())
       formDataToSend.append('signature_position_page', formData.signature_position_page.toString())
+      if (formData.signature_position_cell) {
+        formDataToSend.append('signature_position_cell', formData.signature_position_cell)
+      }
       formDataToSend.append('enable_name_position', formData.enable_name_position.toString())
       if (formData.enable_name_position) {
         formDataToSend.append('name_position_x', formData.name_position_x.toString())
         formDataToSend.append('name_position_y', formData.name_position_y.toString())
+        if (formData.name_position_cell) {
+          formDataToSend.append('name_position_cell', formData.name_position_cell)
+        }
       }
       if (file) {
         formDataToSend.append('file', file)
@@ -80,9 +88,11 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
         signature_position_x: 0,
         signature_position_y: 0,
         signature_position_page: 1,
+        signature_position_cell: '',
         enable_name_position: false,
         name_position_x: 0,
         name_position_y: 0,
+        name_position_cell: '',
       })
       setPositionMode('signature')
       setFile(null)
@@ -231,6 +241,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
                   ...formData,
                   name_position_x: position.x,
                   name_position_y: position.y,
+                  name_position_cell: position.cell || '', // 엑셀 셀 주소
                 })
               } else {
                 // 서명 위치 모드
@@ -239,6 +250,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
                   signature_position_x: position.x,
                   signature_position_y: position.y,
                   signature_position_page: position.page,
+                  signature_position_cell: position.cell || '', // 엑셀 셀 주소
                 })
               }
             }}
@@ -246,6 +258,7 @@ export default function ReportForm({ tenants, onSuccess }: { tenants: Tenant[], 
               x: positionMode === 'name' ? formData.name_position_x : formData.signature_position_x,
               y: positionMode === 'name' ? formData.name_position_y : formData.signature_position_y,
               page: formData.signature_position_page,
+              cell: positionMode === 'name' ? formData.name_position_cell : formData.signature_position_cell,
             }}
           />
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -290,6 +290,24 @@ export async function GET(
         )
       }
       
+      // 셀 주소를 파싱하는 함수 (예: "F35" -> {col: 5, row: 34})
+      const parseCellAddress = (cellAddress: string): { col: number; row: number } | null => {
+        const match = cellAddress.match(/^([A-Z]+)(\d+)$/)
+        if (!match) return null
+        
+        const colStr = match[1]
+        const rowStr = parseInt(match[2])
+        
+        // 컬럼 문자를 숫자로 변환 (A=0, B=1, ..., Z=25, AA=26, ...)
+        let col = 0
+        for (let i = 0; i < colStr.length; i++) {
+          col = col * 26 + (colStr.charCodeAt(i) - 64)
+        }
+        col -= 1 // 0-based index
+        
+        return { col, row: rowStr - 1 } // row도 0-based
+      }
+
       // 서명 이미지 추가
       if (report.signature_data && report.signature_position) {
         try {
@@ -299,10 +317,6 @@ export async function GET(
             signatureImageData = signatureImageData.split(',')[1]
           }
           const signatureBuffer = Buffer.from(signatureImageData, 'base64')
-          
-          // 저장된 좌표 (포인트 단위)
-          const x = report.signature_position.x || 0
-          const y = report.signature_position.y || 0
           
           // 이미지 추가 (엑셀은 포인트 단위 사용)
           const imageId = workbook.addImage({
@@ -314,65 +328,47 @@ export async function GET(
           const imageWidth = 100 // 포인트 단위 (약 3.5cm)
           const imageHeight = 40 // 포인트 단위 (약 1.4cm)
           
-          // 포인트 좌표를 셀 좌표로 변환 (실제 셀 크기 사용)
-          // exceljs에서 셀 크기는 기본값: 너비 64픽셀(약 48포인트), 높이 20포인트
-          // 하지만 실제 셀 크기를 확인해야 함
+          // 셀 주소가 있으면 직접 사용, 없으면 포인트 좌표로 변환
           let col = 0
           let row = 0
-          let accumulatedWidth = 0
-          let accumulatedHeight = 0
           
-          // 열 너비 누적하여 x 좌표에 해당하는 열 찾기
-          for (let c = 1; c <= worksheet.columnCount; c++) {
-            const column = worksheet.getColumn(c)
-            const colWidth = column.width || 8.43 // 기본 너비 (문자 단위, 약 64픽셀 = 48포인트)
-            const colWidthPoints = colWidth * 7 // 대략 1 문자 = 7 포인트
-            if (accumulatedWidth + colWidthPoints > x) {
-              col = c - 1 // 0-based index
-              break
+          if (report.signature_position.cell) {
+            // 셀 주소 직접 사용 (예: "F35")
+            const cellCoord = parseCellAddress(report.signature_position.cell)
+            if (cellCoord) {
+              col = cellCoord.col
+              row = cellCoord.row
+              console.log('엑셀 서명 이미지 - 셀 주소 사용:', { 
+                cell: report.signature_position.cell,
+                col: col + 1, 
+                row: row + 1 
+              })
+            } else {
+              console.warn('셀 주소 파싱 실패, 포인트 좌표 사용:', report.signature_position.cell)
+              // 파싱 실패 시 포인트 좌표로 fallback
+              const x = report.signature_position.x || 0
+              const y = report.signature_position.y || 0
+              // 간단한 변환 (기본 셀 크기 사용)
+              col = Math.floor(x / 48)
+              row = Math.floor(y / 20)
             }
-            accumulatedWidth += colWidthPoints
-          }
-          
-          // 행 높이 누적하여 y 좌표에 해당하는 행 찾기
-          for (let r = 1; r <= worksheet.rowCount; r++) {
-            const rowObj = worksheet.getRow(r)
-            const rowHeight = rowObj.height || 15 // 기본 높이 (포인트)
-            if (accumulatedHeight + rowHeight > y) {
-              row = r - 1 // 0-based index
-              break
-            }
-            accumulatedHeight += rowHeight
-          }
-          
-          // 이미지 위치를 셀 내부 오프셋으로 조정 (포인트 단위)
-          const colWidthPoints = (worksheet.getColumn(col + 1).width || 8.43) * 7
-          const rowHeightPoints = worksheet.getRow(row + 1).height || 15
-          const colOffset = (x - accumulatedWidth) / colWidthPoints // 0~1 사이의 비율
-          const rowOffset = (y - accumulatedHeight) / rowHeightPoints // 0~1 사이의 비율
-          
-          // exceljs는 colOffset, rowOffset을 직접 지원하지 않으므로
-          // 오프셋이 크면 다음 셀로 이동
-          let finalCol = col
-          let finalRow = row
-          if (colOffset > 0.5 && col < worksheet.columnCount - 1) {
-            finalCol = col + 1
-          }
-          if (rowOffset > 0.5 && row < worksheet.rowCount - 1) {
-            finalRow = row + 1
+          } else {
+            // 포인트 좌표를 셀 좌표로 변환 (기존 로직)
+            const x = report.signature_position.x || 0
+            const y = report.signature_position.y || 0
+            col = Math.floor(x / 48)
+            row = Math.floor(y / 20)
+            console.log('엑셀 서명 이미지 - 포인트 좌표 변환:', { x, y, col: col + 1, row: row + 1 })
           }
           
           worksheet.addImage(imageId, {
-            tl: { col: finalCol, row: finalRow },
+            tl: { col, row },
             ext: { width: imageWidth, height: imageHeight },
           })
           
-          console.log('엑셀 서명 이미지 추가:', { 
-            x, y, 
+          console.log('엑셀 서명 이미지 추가 완료:', { 
             col: col + 1, 
             row: row + 1, 
-            colOffset, 
-            rowOffset,
             width: imageWidth, 
             height: imageHeight 
           })
@@ -385,48 +381,56 @@ export async function GET(
       // 이름 텍스트 추가
       if (report.signature_name) {
         try {
-          let nameX = 0
-          let nameY = 0
-          
-          // 이름 위치 우선순위: text_position > name_position > signature_position 옆
-          if (report.text_position && report.text_position.x !== undefined && report.text_position.y !== undefined) {
-            nameX = report.text_position.x
-            nameY = report.text_position.y
-          } else if (report.name_position_x !== undefined && report.name_position_y !== undefined) {
-            nameX = report.name_position_x
-            nameY = report.name_position_y
-          } else if (report.signature_position) {
-            nameX = (report.signature_position.x || 0) + 120 // 서명 옆에 배치
-            nameY = report.signature_position.y || 0
-          }
-          
-          // 포인트 좌표를 셀 좌표로 변환 (실제 셀 크기 사용)
+          // 셀 주소가 있으면 직접 사용, 없으면 포인트 좌표로 변환
           let col = 0
           let row = 0
-          let accumulatedWidth = 0
-          let accumulatedHeight = 0
+          let useCellAddress = false
           
-          // 열 너비 누적하여 x 좌표에 해당하는 열 찾기
-          for (let c = 1; c <= worksheet.columnCount; c++) {
-            const column = worksheet.getColumn(c)
-            const colWidth = column.width || 8.43
-            const colWidthPoints = colWidth * 7
-            if (accumulatedWidth + colWidthPoints > nameX) {
-              col = c - 1
-              break
+          // 이름 위치 우선순위: text_position.cell > text_position > name_position > signature_position 옆
+          if (report.text_position && (report.text_position as any).cell) {
+            // 셀 주소 직접 사용
+            const cellCoord = parseCellAddress((report.text_position as any).cell)
+            if (cellCoord) {
+              col = cellCoord.col
+              row = cellCoord.row
+              useCellAddress = true
+              console.log('엑셀 이름 텍스트 - 셀 주소 사용:', { 
+                cell: (report.text_position as any).cell,
+                col: col + 1, 
+                row: row + 1 
+              })
             }
-            accumulatedWidth += colWidthPoints
-          }
-          
-          // 행 높이 누적하여 y 좌표에 해당하는 행 찾기
-          for (let r = 1; r <= worksheet.rowCount; r++) {
-            const rowObj = worksheet.getRow(r)
-            const rowHeight = rowObj.height || 15
-            if (accumulatedHeight + rowHeight > nameY) {
-              row = r - 1
-              break
+          } else if (report.text_position && report.text_position.x !== undefined && report.text_position.y !== undefined) {
+            // 포인트 좌표 사용
+            const nameX = report.text_position.x
+            const nameY = report.text_position.y
+            col = Math.floor(nameX / 48)
+            row = Math.floor(nameY / 20)
+            console.log('엑셀 이름 텍스트 - 포인트 좌표 변환:', { nameX, nameY, col: col + 1, row: row + 1 })
+          } else if (report.name_position_x !== undefined && report.name_position_y !== undefined) {
+            // name_position 사용
+            const nameX = report.name_position_x
+            const nameY = report.name_position_y
+            col = Math.floor(nameX / 48)
+            row = Math.floor(nameY / 20)
+            console.log('엑셀 이름 텍스트 - name_position 사용:', { nameX, nameY, col: col + 1, row: row + 1 })
+          } else if (report.signature_position) {
+            // 서명 옆에 배치
+            if (report.signature_position.cell) {
+              const cellCoord = parseCellAddress(report.signature_position.cell)
+              if (cellCoord) {
+                col = cellCoord.col + 1 // 서명 옆 셀
+                row = cellCoord.row
+                useCellAddress = true
+              } else {
+                col = Math.floor((report.signature_position.x || 0) / 48) + 1
+                row = Math.floor((report.signature_position.y || 0) / 20)
+              }
+            } else {
+              col = Math.floor((report.signature_position.x || 0) / 48) + 1
+              row = Math.floor((report.signature_position.y || 0) / 20)
             }
-            accumulatedHeight += rowHeight
+            console.log('엑셀 이름 텍스트 - 서명 옆 배치:', { col: col + 1, row: row + 1 })
           }
           
           // 셀에 텍스트 추가 (기존 서식 보존)
@@ -465,13 +469,12 @@ export async function GET(
             }
           }
           
-          console.log('엑셀 이름 텍스트 추가:', { 
-            nameX, 
-            nameY, 
+          console.log('엑셀 이름 텍스트 추가 완료:', { 
             col: col + 1, 
             row: row + 1, 
             text: report.signature_name,
-            existingValue: existingValue ? '있음' : '없음'
+            existingValue: existingValue ? '있음' : '없음',
+            useCellAddress
           })
         } catch (textError: any) {
           console.error('엑셀 이름 텍스트 추가 실패:', textError.message, textError.stack)
