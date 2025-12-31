@@ -6,6 +6,16 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
+  // 서버 사이드에서 폰트 파일 접근을 위해 webpack 설정
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // 서버 빌드 시 lib/fonts 폴더를 포함
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      }
+    }
+    return config
+  },
 }
 
 module.exports = nextConfig

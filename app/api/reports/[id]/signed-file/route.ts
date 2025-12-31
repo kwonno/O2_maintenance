@@ -110,12 +110,20 @@ export async function GET(
             // pdf-lib에 fontkit 등록
             pdfDoc.registerFontkit(fontkit)
             
-            // 한글 폰트 로드 시도 (프로젝트에 포함된 폰트 파일 사용)
+            // 한글 폰트 로드 시도 (Vercel 서버리스 환경 고려)
             let krFont = null
-            const fontPaths = [
+            
+            // Vercel에서는 .next/standalone 또는 .next/server에 파일이 복사됨
+            const possiblePaths = [
+              // 1. lib/fonts (로컬 개발 및 Vercel)
+              path.join(process.cwd(), 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+              // 2. .next/standalone/lib/fonts (Vercel standalone 빌드)
+              path.join(process.cwd(), '.next', 'standalone', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+              // 3. .next/server/lib/fonts (Vercel server 빌드)
+              path.join(process.cwd(), '.next', 'server', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+              // 4. public/fonts (클라이언트용이지만 시도)
               path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
-              path.join(process.cwd(), 'public', 'fonts', 'NanumGothic-Regular.ttf'),
-              // 시스템 폰트 경로 (fallback)
+              // 5. 시스템 폰트 (fallback)
               ...(process.platform === 'win32' ? [
                 'C:/Windows/Fonts/malgun.ttf',
                 'C:/Windows/Fonts/gulim.ttc',
@@ -126,13 +134,19 @@ export async function GET(
               ])
             ]
             
-            for (const fontPath of fontPaths) {
+            console.log('폰트 로드 시도 - process.cwd():', process.cwd())
+            console.log('폰트 로드 시도 - 플랫폼:', process.platform)
+            console.log('폰트 로드 시도 - NODE_ENV:', process.env.NODE_ENV)
+            
+            for (const fontPath of possiblePaths) {
               try {
+                console.log('폰트 경로 시도:', fontPath)
                 const fontBytes = await readFile(fontPath)
                 krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                console.log('한글 폰트 로드 성공:', fontPath)
+                console.log('✅ 한글 폰트 로드 성공:', fontPath)
                 break
-              } catch (e) {
+              } catch (e: any) {
+                console.warn('❌ 폰트 로드 실패:', fontPath, e.message)
                 // 다음 폰트 시도
                 continue
               }
