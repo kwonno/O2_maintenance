@@ -113,22 +113,42 @@ export async function GET(
             // 한글 폰트 로드 시도 (Vercel 서버리스 환경 고려)
             let krFont = null
             
-            // 방법 1: public URL에서 폰트 가져오기 (Vercel에서 가장 확실)
-            const fontUrl = process.env.NEXT_PUBLIC_APP_URL 
-              ? `${process.env.NEXT_PUBLIC_APP_URL}/fonts/NotoSansKR-Regular.ttf`
-              : `http://localhost:3000/fonts/NotoSansKR-Regular.ttf`
+            // 방법 1: public URL에서 폰트 가져오기 (요청 헤더에서 호스트 추출)
+            const host = request.headers.get('host') || request.headers.get('x-forwarded-host')
+            const protocol = request.headers.get('x-forwarded-proto') || 'https'
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+              || (host ? `${protocol}://${host}` : null)
+              || process.env.VERCEL_URL 
+                ? `https://${process.env.VERCEL_URL}`
+                : 'http://localhost:3000'
+            
+            const fontUrl = `${baseUrl}/fonts/NotoSansKR-Regular.ttf`
             
             try {
-              console.log('폰트 URL에서 로드 시도:', fontUrl)
-              const fontResponse = await fetch(fontUrl)
+              console.log('폰트 URL에서 로드 시도:', fontUrl, {
+                host,
+                protocol,
+                NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+                VERCEL_URL: process.env.VERCEL_URL
+              })
+              const fontResponse = await fetch(fontUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0',
+                },
+              })
+              
+              console.log('폰트 응답 상태:', fontResponse.status, fontResponse.statusText)
+              
               if (fontResponse.ok) {
                 const fontArrayBuffer = await fontResponse.arrayBuffer()
                 const fontBytes = new Uint8Array(fontArrayBuffer)
                 krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                console.log('✅ 한글 폰트 로드 성공 (URL):', fontUrl)
+                console.log('✅ 한글 폰트 로드 성공 (URL):', fontUrl, '크기:', fontBytes.length, 'bytes')
+              } else {
+                console.warn('❌ 폰트 URL 응답 실패:', fontResponse.status, fontResponse.statusText)
               }
             } catch (e: any) {
-              console.warn('❌ 폰트 URL 로드 실패:', fontUrl, e.message)
+              console.warn('❌ 폰트 URL 로드 실패:', fontUrl, e.message, e.stack)
             }
             
             // 방법 2: 파일 시스템에서 로드 시도 (로컬 개발용)
