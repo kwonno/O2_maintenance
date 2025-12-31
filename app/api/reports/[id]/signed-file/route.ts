@@ -300,13 +300,11 @@ export async function GET(
           }
           const signatureBuffer = Buffer.from(signatureImageData, 'base64')
           
-          // 엑셀 좌표는 포인트(1/72 인치) 단위
-          // 저장된 좌표를 포인트로 변환 (대략 1:1 비율로 가정, 필요시 조정)
+          // 저장된 좌표 (포인트 단위)
           const x = report.signature_position.x || 0
           const y = report.signature_position.y || 0
           
           // 이미지 추가 (엑셀은 포인트 단위 사용)
-          // exceljs는 Buffer 또는 Uint8Array를 받음
           const imageId = workbook.addImage({
             buffer: signatureBuffer as any,
             extension: 'png',
@@ -316,20 +314,70 @@ export async function GET(
           const imageWidth = 100 // 포인트 단위 (약 3.5cm)
           const imageHeight = 40 // 포인트 단위 (약 1.4cm)
           
-          // 엑셀에서 이미지 위치는 셀 기준이므로, 좌표를 셀 위치로 변환
-          // 대략 72 포인트 = 1 인치, 셀 너비는 기본 64 픽셀 (약 48 포인트)
-          // 엑셀 좌표계는 왼쪽 상단이 0,0이고, 셀 기준으로 위치 지정
-          const col = Math.floor(x / 48)
-          const row = Math.floor(y / 20) // 행 높이는 기본 20 포인트
+          // 포인트 좌표를 셀 좌표로 변환 (실제 셀 크기 사용)
+          // exceljs에서 셀 크기는 기본값: 너비 64픽셀(약 48포인트), 높이 20포인트
+          // 하지만 실제 셀 크기를 확인해야 함
+          let col = 0
+          let row = 0
+          let accumulatedWidth = 0
+          let accumulatedHeight = 0
+          
+          // 열 너비 누적하여 x 좌표에 해당하는 열 찾기
+          for (let c = 1; c <= worksheet.columnCount; c++) {
+            const column = worksheet.getColumn(c)
+            const colWidth = column.width || 8.43 // 기본 너비 (문자 단위, 약 64픽셀 = 48포인트)
+            const colWidthPoints = colWidth * 7 // 대략 1 문자 = 7 포인트
+            if (accumulatedWidth + colWidthPoints > x) {
+              col = c - 1 // 0-based index
+              break
+            }
+            accumulatedWidth += colWidthPoints
+          }
+          
+          // 행 높이 누적하여 y 좌표에 해당하는 행 찾기
+          for (let r = 1; r <= worksheet.rowCount; r++) {
+            const rowObj = worksheet.getRow(r)
+            const rowHeight = rowObj.height || 15 // 기본 높이 (포인트)
+            if (accumulatedHeight + rowHeight > y) {
+              row = r - 1 // 0-based index
+              break
+            }
+            accumulatedHeight += rowHeight
+          }
+          
+          // 이미지 위치를 셀 내부 오프셋으로 조정 (포인트 단위)
+          const colWidthPoints = (worksheet.getColumn(col + 1).width || 8.43) * 7
+          const rowHeightPoints = worksheet.getRow(row + 1).height || 15
+          const colOffset = (x - accumulatedWidth) / colWidthPoints // 0~1 사이의 비율
+          const rowOffset = (y - accumulatedHeight) / rowHeightPoints // 0~1 사이의 비율
+          
+          // exceljs는 colOffset, rowOffset을 직접 지원하지 않으므로
+          // 오프셋이 크면 다음 셀로 이동
+          let finalCol = col
+          let finalRow = row
+          if (colOffset > 0.5 && col < worksheet.columnCount - 1) {
+            finalCol = col + 1
+          }
+          if (rowOffset > 0.5 && row < worksheet.rowCount - 1) {
+            finalRow = row + 1
+          }
           
           worksheet.addImage(imageId, {
-            tl: { col, row }, // 왼쪽 상단 셀 위치
-            ext: { width: imageWidth, height: imageHeight }, // 이미지 크기 (포인트)
+            tl: { col: finalCol, row: finalRow },
+            ext: { width: imageWidth, height: imageHeight },
           })
           
-          console.log('엑셀 서명 이미지 추가:', { x, y, col, row, width: imageWidth, height: imageHeight })
+          console.log('엑셀 서명 이미지 추가:', { 
+            x, y, 
+            col: col + 1, 
+            row: row + 1, 
+            colOffset, 
+            rowOffset,
+            width: imageWidth, 
+            height: imageHeight 
+          })
         } catch (imageError: any) {
-          console.error('엑셀 서명 이미지 추가 실패:', imageError.message)
+          console.error('엑셀 서명 이미지 추가 실패:', imageError.message, imageError.stack)
           // 이미지 추가 실패해도 계속 진행
         }
       }
@@ -352,23 +400,81 @@ export async function GET(
             nameY = report.signature_position.y || 0
           }
           
-          // 셀 위치 계산
-          const col = Math.floor(nameX / 48)
-          const row = Math.floor(nameY / 20)
+          // 포인트 좌표를 셀 좌표로 변환 (실제 셀 크기 사용)
+          let col = 0
+          let row = 0
+          let accumulatedWidth = 0
+          let accumulatedHeight = 0
           
-          // 셀에 텍스트 추가
-          const cell = worksheet.getCell(row + 1, col + 1) // 엑셀은 1부터 시작
-          cell.value = report.signature_name
-          cell.font = {
-            name: '맑은 고딕',
-            size: 12,
-            bold: true,
+          // 열 너비 누적하여 x 좌표에 해당하는 열 찾기
+          for (let c = 1; c <= worksheet.columnCount; c++) {
+            const column = worksheet.getColumn(c)
+            const colWidth = column.width || 8.43
+            const colWidthPoints = colWidth * 7
+            if (accumulatedWidth + colWidthPoints > nameX) {
+              col = c - 1
+              break
+            }
+            accumulatedWidth += colWidthPoints
           }
-          cell.alignment = { vertical: 'middle', horizontal: 'left' }
           
-          console.log('엑셀 이름 텍스트 추가:', { nameX, nameY, col: col + 1, row: row + 1, text: report.signature_name })
+          // 행 높이 누적하여 y 좌표에 해당하는 행 찾기
+          for (let r = 1; r <= worksheet.rowCount; r++) {
+            const rowObj = worksheet.getRow(r)
+            const rowHeight = rowObj.height || 15
+            if (accumulatedHeight + rowHeight > nameY) {
+              row = r - 1
+              break
+            }
+            accumulatedHeight += rowHeight
+          }
+          
+          // 셀에 텍스트 추가 (기존 서식 보존)
+          const cell = worksheet.getCell(row + 1, col + 1) // 엑셀은 1부터 시작
+          
+          // 기존 셀 값이 있으면 유지하고, 없으면 이름 추가
+          // 기존 서식 보존
+          const existingValue = cell.value
+          const existingFont = cell.font
+          const existingAlignment = cell.alignment
+          
+          // 셀 값 설정 (기존 값이 있으면 유지, 없으면 이름 추가)
+          if (!existingValue || existingValue === null || existingValue === '') {
+            cell.value = report.signature_name
+          } else {
+            // 기존 값이 있으면 그대로 유지 (기존 서명 이미지 등 보존)
+            console.log('셀에 기존 값이 있어 텍스트 추가하지 않음:', { col: col + 1, row: row + 1, existingValue })
+          }
+          
+          // 폰트는 기존 것이 있으면 유지, 없으면 설정
+          if (!existingFont || !existingFont.name) {
+            cell.font = {
+              ...existingFont,
+              name: existingFont?.name || '맑은 고딕',
+              size: existingFont?.size || 12,
+              bold: existingFont?.bold !== undefined ? existingFont.bold : true,
+            }
+          }
+          
+          // 정렬은 기존 것이 있으면 유지, 없으면 가운데 정렬
+          if (!existingAlignment || !existingAlignment.horizontal) {
+            cell.alignment = {
+              ...existingAlignment,
+              vertical: existingAlignment?.vertical || 'middle',
+              horizontal: existingAlignment?.horizontal || 'center', // 가운데 정렬
+            }
+          }
+          
+          console.log('엑셀 이름 텍스트 추가:', { 
+            nameX, 
+            nameY, 
+            col: col + 1, 
+            row: row + 1, 
+            text: report.signature_name,
+            existingValue: existingValue ? '있음' : '없음'
+          })
         } catch (textError: any) {
-          console.error('엑셀 이름 텍스트 추가 실패:', textError.message)
+          console.error('엑셀 이름 텍스트 추가 실패:', textError.message, textError.stack)
           // 텍스트 추가 실패해도 계속 진행
         }
       }
