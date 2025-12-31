@@ -3,5 +3,10 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["icn1"]
+  "regions": ["icn1"],
+  "functions": {
+    "app/api/reports/[id]/signed-file/route.ts": {
+      "includeFiles": "lib/fonts/**"
+    }
+  }
 }
