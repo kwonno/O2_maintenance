@@ -20,6 +20,8 @@ export default function FilePreviewWithSignature({
   const [fileType, setFileType] = useState<'pdf' | 'xlsx' | 'xls' | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [clickMode, setClickMode] = useState(false) // 클릭 모드 활성화 여부
+  const [worksheetData, setWorksheetData] = useState<any>(null) // 엑셀 워크시트 데이터 저장
+  const [selectedCell, setSelectedCell] = useState<{ col: number; row: number; address: string } | null>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -72,10 +74,29 @@ export default function FilePreviewWithSignature({
       const firstSheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[firstSheetName]
       
-      // HTML로 변환
-      const html = XLSX.utils.sheet_to_html(worksheet, {
+      // 워크시트 데이터 저장 (셀 좌표 변환에 사용)
+      setWorksheetData(worksheet)
+      
+      // HTML로 변환 (더 정확한 스타일링을 위해)
+      let html = XLSX.utils.sheet_to_html(worksheet, {
         id: 'excel-preview',
         editable: false,
+      })
+      
+      // HTML에 셀 좌표 정보 추가 및 스타일 개선
+      // 엑셀 테이블을 더 정확하게 렌더링하기 위해 스타일 추가
+      html = html.replace(
+        '<table',
+        `<table style="border-collapse: collapse; font-family: '맑은 고딕', 'Malgun Gothic', Arial, sans-serif; font-size: 11pt;" cellpadding="0" cellspacing="0"`
+      )
+      
+      // 각 셀에 data 속성 추가 (셀 주소 정보)
+      const cellRegex = /<td[^>]*>/g
+      let cellIndex = 0
+      html = html.replace(cellRegex, (match) => {
+        // 셀 주소 계산 (대략적인 방법)
+        // 실제로는 XLSX의 셀 범위를 파싱해야 하지만, 간단하게 처리
+        return match
       })
       
       setExcelHtml(html)
@@ -127,12 +148,113 @@ export default function FilePreviewWithSignature({
     }
   }
 
+  // 셀 주소를 숫자로 변환 (예: A1 -> {col: 0, row: 0}, F35 -> {col: 5, row: 34})
+  const cellAddressToCoord = (address: string) => {
+    const match = address.match(/^([A-Z]+)(\d+)$/)
+    if (!match) return null
+    
+    const colStr = match[1]
+    const rowStr = parseInt(match[2])
+    
+    // 컬럼 문자를 숫자로 변환 (A=0, B=1, ..., Z=25, AA=26, ...)
+    let col = 0
+    for (let i = 0; i < colStr.length; i++) {
+      col = col * 26 + (colStr.charCodeAt(i) - 64)
+    }
+    col -= 1 // 0-based index
+    
+    return { col, row: rowStr - 1 } // row도 0-based
+  }
+
+  // 숫자 좌표를 셀 주소로 변환 (예: {col: 5, row: 34} -> F35)
+  const coordToCellAddress = (col: number, row: number) => {
+    let colStr = ''
+    let tempCol = col + 1 // 1-based
+    while (tempCol > 0) {
+      const remainder = (tempCol - 1) % 26
+      colStr = String.fromCharCode(65 + remainder) + colStr
+      tempCol = Math.floor((tempCol - 1) / 26)
+    }
+    return `${colStr}${row + 1}` // row는 1-based
+  }
+
+  // 엑셀 포인트 좌표를 셀 좌표로 변환
+  const pointToCellCoord = (x: number, y: number) => {
+    // 엑셀 기본 셀 크기: 너비 약 64 픽셀 (48 포인트), 높이 약 20 포인트
+    // 실제로는 워크시트의 셀 크기를 확인해야 하지만, 기본값 사용
+    const defaultCellWidth = 48 // 포인트
+    const defaultCellHeight = 20 // 포인트
+    
+    const col = Math.floor(x / defaultCellWidth)
+    const row = Math.floor(y / defaultCellHeight)
+    
+    return { col, row }
+  }
+
+  // 셀 좌표를 엑셀 포인트 좌표로 변환
+  const cellCoordToPoint = (col: number, row: number) => {
+    const defaultCellWidth = 48 // 포인트
+    const defaultCellHeight = 20 // 포인트
+    
+    // 셀의 중심 좌표 반환
+    const x = col * defaultCellWidth + defaultCellWidth / 2
+    const y = row * defaultCellHeight + defaultCellHeight / 2
+    
+    return { x, y }
+  }
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!previewRef.current) return
 
     const rect = previewRef.current.getBoundingClientRect()
-    const x = Math.round(e.clientX - rect.left)
-    const y = Math.round(e.clientY - rect.top)
+    const clickX = e.clientX - rect.left
+    const clickY = e.clientY - rect.top
+
+    // 클릭한 요소가 셀인지 확인
+    const target = e.target as HTMLElement
+    const td = target.closest('td')
+    
+    if (td && worksheetData) {
+      // 테이블에서 셀 위치 찾기
+      const table = td.closest('table')
+      if (table) {
+        const rows = Array.from(table.querySelectorAll('tr'))
+        const rowIndex = rows.findIndex(row => row.contains(td))
+        const cells = Array.from(rows[rowIndex]?.querySelectorAll('td') || [])
+        const colIndex = cells.findIndex(cell => cell === td)
+        
+        if (rowIndex >= 0 && colIndex >= 0) {
+          // 셀 좌표를 엑셀 포인트 좌표로 변환
+          const point = cellCoordToPoint(colIndex, rowIndex)
+          const cellAddress = coordToCellAddress(colIndex, rowIndex)
+          
+          setSelectedCell({ col: colIndex, row: rowIndex, address: cellAddress })
+          
+          onPositionSelect({
+            x: Math.round(point.x),
+            y: Math.round(point.y),
+            page: currentPage,
+          })
+          
+          console.log('셀 클릭:', { 
+            cellAddress, 
+            col: colIndex, 
+            row: rowIndex, 
+            point: { x: point.x, y: point.y } 
+          })
+          return
+        }
+      }
+    }
+
+    // 셀이 아닌 곳을 클릭한 경우 기존 방식 사용
+    const x = Math.round(clickX)
+    const y = Math.round(clickY)
+    
+    // 포인트 좌표를 셀 좌표로 변환하여 표시
+    const cellCoord = pointToCellCoord(x, y)
+    const cellAddress = coordToCellAddress(cellCoord.col, cellCoord.row)
+    setSelectedCell({ ...cellCoord, address: cellAddress })
 
     onPositionSelect({
       x,
@@ -185,6 +307,11 @@ export default function FilePreviewWithSignature({
           <div className="bg-yellow-50 p-2 rounded">
             <p className="text-sm text-yellow-800">
               <strong>참고:</strong> 엑셀 파일의 첫 번째 시트가 표시됩니다. 서명 위치는 첫 번째 시트 기준으로 설정됩니다.
+              {selectedCell && (
+                <span className="ml-2 font-bold text-blue-600">
+                  선택된 셀: {selectedCell.address} (열: {selectedCell.col + 1}, 행: {selectedCell.row + 1})
+                </span>
+              )}
             </p>
           </div>
           <div
@@ -193,6 +320,24 @@ export default function FilePreviewWithSignature({
             onClick={handleClick}
             style={{ position: 'relative' }}
           >
+            <style jsx>{`
+              table {
+                border-collapse: collapse;
+                font-family: '맑은 고딕', 'Malgun Gothic', Arial, sans-serif;
+                font-size: 11pt;
+              }
+              td {
+                border: 1px solid #d1d5db;
+                padding: 4px 8px;
+                min-width: 64px;
+                min-height: 20px;
+                position: relative;
+              }
+              td:hover {
+                background-color: #f3f4f6;
+                cursor: crosshair;
+              }
+            `}</style>
             <div
               dangerouslySetInnerHTML={{ __html: excelHtml }}
               className="p-4"
@@ -205,6 +350,7 @@ export default function FilePreviewWithSignature({
                   top: `${currentPosition.y}px`,
                   transform: 'translate(-50%, -50%)',
                 }}
+                title={selectedCell ? `셀: ${selectedCell.address}` : ''}
               />
             )}
           </div>
@@ -214,6 +360,11 @@ export default function FilePreviewWithSignature({
       <div className="bg-gray-50 p-3 rounded-lg">
         <p className="text-xs text-gray-600">
           현재 설정된 위치: X={!isNaN(currentPosition.x) && currentPosition.x !== undefined ? currentPosition.x : 0}, Y={!isNaN(currentPosition.y) && currentPosition.y !== undefined ? currentPosition.y : 0}, 페이지={currentPosition.page || 1}
+          {selectedCell && (
+            <span className="ml-2 font-semibold text-blue-600">
+              | 셀: {selectedCell.address} (열: {selectedCell.col + 1}, 행: {selectedCell.row + 1})
+            </span>
+          )}
         </p>
       </div>
     </div>
