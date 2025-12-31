@@ -113,58 +113,30 @@ export async function GET(
             // pdf-lib에 fontkit 등록 (1번만)
             pdfDoc.registerFontkit(fontkit)
             
-            // 한글 폰트 로드 시도
+            // 한글 폰트 로드: 파일 시스템에서만 읽기 (URL fetch 제거, 안정성 우선)
             let krFont = null
             
-            // 방법 1: request origin 기반으로 폰트 URL 생성 (env 의존 없음)
-            try {
-              const origin = request.nextUrl.origin
-              const fontUrl = new URL('/fonts/NotoSansKR-Regular.ttf', origin).toString()
-              
-              console.log('폰트 URL에서 로드 시도:', fontUrl)
-              const fontResponse = await fetch(fontUrl, { cache: 'no-store' })
-              
-              console.log('폰트 응답 상태:', fontResponse.status, fontResponse.statusText)
-              
-              if (fontResponse.ok) {
-                const fontArrayBuffer = await fontResponse.arrayBuffer()
-                const fontBytes = new Uint8Array(fontArrayBuffer)
-                console.log('폰트 바이트 로드 완료, 크기:', fontBytes.length, 'bytes')
-                
-                krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                console.log('✅ 한글 폰트 임베딩 성공 (URL):', fontUrl)
-              } else {
-                console.warn('❌ 폰트 URL 응답 실패:', fontResponse.status, fontResponse.statusText)
-                throw new Error(`폰트 fetch 실패: ${fontResponse.status} ${fontUrl}`)
-              }
-            } catch (urlError: any) {
-              console.warn('❌ 폰트 URL 로드 실패:', urlError.message)
-              // URL 로드 실패 시 파일 시스템에서 로드 시도
-            }
+            const possiblePaths = [
+              path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
+              '/var/task/public/fonts/NotoSansKR-Regular.ttf', // Vercel Lambda 경로
+              path.join(process.cwd(), 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+              path.join(process.cwd(), '.next', 'standalone', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+              path.join(process.cwd(), '.next', 'server', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+            ]
             
-            // 방법 2: 파일 시스템에서 로드 시도 (Vercel에서 /var/task/public/fonts/ 경로 사용)
-            if (!krFont) {
-              const possiblePaths = [
-                path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
-                path.join(process.cwd(), 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-                '/var/task/public/fonts/NotoSansKR-Regular.ttf', // Vercel Lambda 경로
-                path.join(process.cwd(), '.next', 'standalone', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-                path.join(process.cwd(), '.next', 'server', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-              ]
-              
-              console.log('폰트 파일 시스템 로드 시도 - process.cwd():', process.cwd())
-              
-              for (const fontPath of possiblePaths) {
-                try {
-                  console.log('폰트 경로 시도:', fontPath)
-                  const fontBytes = await readFile(fontPath)
-                  krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                  console.log('✅ 한글 폰트 로드 성공 (파일):', fontPath)
-                  break
-                } catch (e: any) {
-                  console.warn('❌ 폰트 로드 실패:', fontPath, e.message)
-                  continue
-                }
+            console.log('폰트 파일 시스템 로드 시도 - process.cwd():', process.cwd())
+            
+            for (const fontPath of possiblePaths) {
+              try {
+                console.log('폰트 경로 시도:', fontPath)
+                const fontBytes = await readFile(fontPath)
+                // 핵심: subset: false로 전체 폰트 임베딩 (뷰어 호환성 확보)
+                krFont = await pdfDoc.embedFont(fontBytes) // subset 제거
+                console.log('✅ 한글 폰트 로드 성공 (파일, 전체 임베딩):', fontPath, '크기:', fontBytes.length, 'bytes')
+                break
+              } catch (e: any) {
+                console.warn('❌ 폰트 로드 실패:', fontPath, e.message)
+                continue
               }
             }
             
@@ -182,6 +154,7 @@ export async function GET(
                 size: fontSize,
                 font: helveticaFont,
                 color: rgb(0, 0, 0), // 검은색 명시
+                opacity: 1, // 완전 불투명
               })
               return
             }
@@ -214,15 +187,16 @@ export async function GET(
             })
             
             try {
-              // 텍스트 색상을 명시적으로 검은색으로 설정 (투명/연한 색상 문제 방지)
+              // 텍스트 색상과 opacity를 명시적으로 설정 (뷰어 호환성 확보)
               page.drawText(text, {
                 x,
                 y,
                 size: fontSize,
                 font: krFont,
                 color: rgb(0, 0, 0), // 검은색 명시
+                opacity: 1, // 완전 불투명
               })
-              console.log('✅ 텍스트 그리기 성공:', text, '색상: 검은색')
+              console.log('✅ 텍스트 그리기 성공:', text, '색상: 검은색, opacity: 1')
             } catch (drawError: any) {
               console.error('❌ 텍스트 그리기 실패:', drawError.message, drawError.stack)
               throw drawError
@@ -248,6 +222,7 @@ export async function GET(
                 size: fontSize,
                 font: helveticaFont,
                 color: rgb(0, 0, 0), // 검은색 명시
+                opacity: 1, // 완전 불투명
               })
               console.warn('기본 폰트로 텍스트 그리기 완료 (한글이 깨질 수 있음)')
             } catch (e: any) {
@@ -259,6 +234,7 @@ export async function GET(
                   y: yPos,
                   size: fontSize,
                   color: rgb(0, 0, 0), // 검은색 명시
+                  opacity: 1, // 완전 불투명
                 })
               } catch (finalError: any) {
                 console.error('최종 폴백 실패:', finalError.message)
