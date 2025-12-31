@@ -135,27 +135,32 @@ function PdfViewerWithSignature({
     }
   }
 
-  // 캔버스 클릭 시 PDF 좌표로 변환 (pdf.js의 convertToPdfPoint 사용)
+  // 캔버스 클릭 시 PDF 좌표로 변환 (CSS → Canvas 내부 좌표 → PDF 좌표)
   const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onPositionClick || !canvasRef.current || !pageViewport) return
 
     const canvas = canvasRef.current
-    const containerEl = canvas // 오버레이 기준과 동일한 DOM
-    const rect = containerEl.getBoundingClientRect()
+    const rect = canvas.getBoundingClientRect()
     
     // 클릭 위치 (CSS 픽셀 기준)
     const cssX = e.clientX - rect.left
     const cssY = e.clientY - rect.top
 
-    // PDF 좌표로 변환 (pdf.js의 convertToPdfPoint 사용)
-    const { page, viewport, actualViewport } = pageViewport
-    
-    // pdf.js의 convertToPdfPoint를 사용하여 정확한 변환
-    const [pdfX, pdfY] = viewport.convertToPdfPoint(cssX, cssY)
+    // 핵심: CSS 좌표 → canvas 내부 좌표로 스케일 보정
+    const canvasX = cssX * (canvas.width / rect.width)
+    const canvasY = cssY * (canvas.height / rect.height)
 
-    console.log('클릭 좌표 변환 (convertToPdfPoint 사용):', {
+    // PDF 좌표로 변환 (pdf.js의 convertToPdfPoint 사용)
+    const { viewport, actualViewport } = pageViewport
+    
+    // canvas 내부 좌표를 PDF 좌표로 변환
+    const [pdfX, pdfY] = viewport.convertToPdfPoint(canvasX, canvasY)
+
+    console.log('클릭 좌표 변환 (CSS → Canvas → PDF):', {
       CSS좌표: { cssX, cssY },
       CSS크기: { width: rect.width, height: rect.height },
+      Canvas내부좌표: { canvasX, canvasY },
+      Canvas크기: { width: canvas.width, height: canvas.height },
       viewport크기: { width: viewport.width, height: viewport.height },
       PDF크기: { width: actualViewport.width, height: actualViewport.height },
       PDF좌표: { pdfX, pdfY },
@@ -210,14 +215,14 @@ function PdfViewerWithSignature({
             onClick={handleCanvasClick}
             title={onPositionClick ? "서명 위치를 클릭하세요" : ""}
           />
-          {/* 서명 오버레이 - PDF 좌표에 정확히 맞춤 */}
+          {/* 서명 오버레이 - rect 기준으로 정확히 맞춤 */}
           {signatureData && position && position.page === currentPage && canvasRef.current && pageViewport && pageViewport.actualViewport && (
             <>
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  left: `${(position.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
-                  top: `${((pageViewport.actualViewport.height - position.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
+                  left: `${(position.x / pageViewport.actualViewport.width) * (canvasRef.current.getBoundingClientRect().width)}px`,
+                  top: `${((pageViewport.actualViewport.height - position.y) / pageViewport.actualViewport.height) * (canvasRef.current.getBoundingClientRect().height)}px`, // Y 좌표 반전 (PDF 좌표계는 하단이 0)
                   transform: 'translate(-50%, -50%)',
                 }}
               >
@@ -236,8 +241,8 @@ function PdfViewerWithSignature({
                 <div
                   className="absolute pointer-events-none"
                   style={{
-                    left: `${(textPosition.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
-                    top: `${((pageViewport.actualViewport.height - textPosition.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`,
+                    left: `${(textPosition.x / pageViewport.actualViewport.width) * (canvasRef.current.getBoundingClientRect().width)}px`,
+                    top: `${((pageViewport.actualViewport.height - textPosition.y) / pageViewport.actualViewport.height) * (canvasRef.current.getBoundingClientRect().height)}px`,
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
@@ -248,8 +253,8 @@ function PdfViewerWithSignature({
                 <div
                   className="absolute pointer-events-none"
                   style={{
-                    left: `${(namePosition.x / pageViewport.actualViewport.width) * canvasRef.current.width}px`,
-                    top: `${((pageViewport.actualViewport.height - namePosition.y) / pageViewport.actualViewport.height) * canvasRef.current.height}px`,
+                    left: `${(namePosition.x / pageViewport.actualViewport.width) * (canvasRef.current.getBoundingClientRect().width)}px`,
+                    top: `${((pageViewport.actualViewport.height - namePosition.y) / pageViewport.actualViewport.height) * (canvasRef.current.getBoundingClientRect().height)}px`,
                     transform: 'translate(-50%, -50%)',
                   }}
                 >

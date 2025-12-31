@@ -113,42 +113,55 @@ export async function GET(
             // 한글 폰트 로드 시도 (Vercel 서버리스 환경 고려)
             let krFont = null
             
-            // Vercel에서는 .next/standalone 또는 .next/server에 파일이 복사됨
-            const possiblePaths = [
-              // 1. lib/fonts (로컬 개발 및 Vercel)
-              path.join(process.cwd(), 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-              // 2. .next/standalone/lib/fonts (Vercel standalone 빌드)
-              path.join(process.cwd(), '.next', 'standalone', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-              // 3. .next/server/lib/fonts (Vercel server 빌드)
-              path.join(process.cwd(), '.next', 'server', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-              // 4. public/fonts (클라이언트용이지만 시도)
-              path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
-              // 5. 시스템 폰트 (fallback)
-              ...(process.platform === 'win32' ? [
-                'C:/Windows/Fonts/malgun.ttf',
-                'C:/Windows/Fonts/gulim.ttc',
-              ] : process.platform === 'darwin' ? [
-                '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
-              ] : [
-                '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
-              ])
-            ]
+            // 방법 1: public URL에서 폰트 가져오기 (Vercel에서 가장 확실)
+            const fontUrl = process.env.NEXT_PUBLIC_APP_URL 
+              ? `${process.env.NEXT_PUBLIC_APP_URL}/fonts/NotoSansKR-Regular.ttf`
+              : `http://localhost:3000/fonts/NotoSansKR-Regular.ttf`
             
-            console.log('폰트 로드 시도 - process.cwd():', process.cwd())
-            console.log('폰트 로드 시도 - 플랫폼:', process.platform)
-            console.log('폰트 로드 시도 - NODE_ENV:', process.env.NODE_ENV)
-            
-            for (const fontPath of possiblePaths) {
-              try {
-                console.log('폰트 경로 시도:', fontPath)
-                const fontBytes = await readFile(fontPath)
+            try {
+              console.log('폰트 URL에서 로드 시도:', fontUrl)
+              const fontResponse = await fetch(fontUrl)
+              if (fontResponse.ok) {
+                const fontArrayBuffer = await fontResponse.arrayBuffer()
+                const fontBytes = new Uint8Array(fontArrayBuffer)
                 krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                console.log('✅ 한글 폰트 로드 성공:', fontPath)
-                break
-              } catch (e: any) {
-                console.warn('❌ 폰트 로드 실패:', fontPath, e.message)
-                // 다음 폰트 시도
-                continue
+                console.log('✅ 한글 폰트 로드 성공 (URL):', fontUrl)
+              }
+            } catch (e: any) {
+              console.warn('❌ 폰트 URL 로드 실패:', fontUrl, e.message)
+            }
+            
+            // 방법 2: 파일 시스템에서 로드 시도 (로컬 개발용)
+            if (!krFont) {
+              const possiblePaths = [
+                path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
+                path.join(process.cwd(), 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+                path.join(process.cwd(), '.next', 'standalone', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+                path.join(process.cwd(), '.next', 'server', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+                // 시스템 폰트 (fallback)
+                ...(process.platform === 'win32' ? [
+                  'C:/Windows/Fonts/malgun.ttf',
+                  'C:/Windows/Fonts/gulim.ttc',
+                ] : process.platform === 'darwin' ? [
+                  '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+                ] : [
+                  '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+                ])
+              ]
+              
+              console.log('폰트 파일 시스템 로드 시도 - process.cwd():', process.cwd())
+              
+              for (const fontPath of possiblePaths) {
+                try {
+                  console.log('폰트 경로 시도:', fontPath)
+                  const fontBytes = await readFile(fontPath)
+                  krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
+                  console.log('✅ 한글 폰트 로드 성공 (파일):', fontPath)
+                  break
+                } catch (e: any) {
+                  console.warn('❌ 폰트 로드 실패:', fontPath, e.message)
+                  continue
+                }
               }
             }
             
