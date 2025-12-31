@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSignedUrl } from '@/lib/supabase/storage'
-import { PDFDocument, StandardFonts } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import * as XLSX from 'xlsx'
 import { readFile } from 'fs/promises'
@@ -181,6 +181,7 @@ export async function GET(
                 y,
                 size: fontSize,
                 font: helveticaFont,
+                color: rgb(0, 0, 0), // 검은색 명시
               })
               return
             }
@@ -213,13 +214,15 @@ export async function GET(
             })
             
             try {
+              // 텍스트 색상을 명시적으로 검은색으로 설정 (투명/연한 색상 문제 방지)
               page.drawText(text, {
                 x,
                 y,
                 size: fontSize,
                 font: krFont,
+                color: rgb(0, 0, 0), // 검은색 명시
               })
-              console.log('✅ 텍스트 그리기 성공:', text)
+              console.log('✅ 텍스트 그리기 성공:', text, '색상: 검은색')
             } catch (drawError: any) {
               console.error('❌ 텍스트 그리기 실패:', drawError.message, drawError.stack)
               throw drawError
@@ -244,6 +247,7 @@ export async function GET(
                 y,
                 size: fontSize,
                 font: helveticaFont,
+                color: rgb(0, 0, 0), // 검은색 명시
               })
               console.warn('기본 폰트로 텍스트 그리기 완료 (한글이 깨질 수 있음)')
             } catch (e: any) {
@@ -254,6 +258,7 @@ export async function GET(
                   x: xPos,
                   y: yPos,
                   size: fontSize,
+                  color: rgb(0, 0, 0), // 검은색 명시
                 })
               } catch (finalError: any) {
                 console.error('최종 폴백 실패:', finalError.message)
