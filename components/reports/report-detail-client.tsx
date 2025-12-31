@@ -135,34 +135,31 @@ function PdfViewerWithSignature({
     }
   }
 
-  // 캔버스 클릭 시 PDF 좌표로 변환
+  // 캔버스 클릭 시 PDF 좌표로 변환 (pdf.js의 convertToPdfPoint 사용)
   const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onPositionClick || !canvasRef.current || !pageViewport) return
 
     const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
+    const containerEl = canvas // 오버레이 기준과 동일한 DOM
+    const rect = containerEl.getBoundingClientRect()
     
     // 클릭 위치 (CSS 픽셀 기준)
     const cssX = e.clientX - rect.left
     const cssY = e.clientY - rect.top
 
-    // PDF 좌표로 변환
-    const { actualViewport } = pageViewport
+    // PDF 좌표로 변환 (pdf.js의 convertToPdfPoint 사용)
+    const { page, viewport, actualViewport } = pageViewport
     
-    // CSS 크기 대비 PDF 페이지 포인트 스케일
-    const scaleX = actualViewport.width / rect.width
-    const scaleY = actualViewport.height / rect.height
-    
-    // PDF는 좌하단 원점이라 y 뒤집기
-    const pdfX = cssX * scaleX
-    const pdfY = (rect.height - cssY) * scaleY
+    // pdf.js의 convertToPdfPoint를 사용하여 정확한 변환
+    const [pdfX, pdfY] = viewport.convertToPdfPoint(cssX, cssY)
 
-    console.log('클릭 좌표 변환:', {
+    console.log('클릭 좌표 변환 (convertToPdfPoint 사용):', {
       CSS좌표: { cssX, cssY },
       CSS크기: { width: rect.width, height: rect.height },
+      viewport크기: { width: viewport.width, height: viewport.height },
       PDF크기: { width: actualViewport.width, height: actualViewport.height },
-      스케일: { scaleX, scaleY },
-      PDF좌표: { pdfX, pdfY }
+      PDF좌표: { pdfX, pdfY },
+      페이지높이: actualViewport.height
     })
 
     onPositionClick({

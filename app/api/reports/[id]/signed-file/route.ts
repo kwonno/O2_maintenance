@@ -3,8 +3,11 @@ import { requireAuth } from '@/lib/auth'
 import { getTenantUserByUserId } from '@/lib/auth/tenant-helper'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSignedUrl } from '@/lib/supabase/storage'
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, StandardFonts } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import * as XLSX from 'xlsx'
+import { readFile } from 'fs/promises'
+import path from 'path'
 
 export async function GET(
   request: NextRequest,
@@ -82,21 +85,16 @@ export async function GET(
         
         // PDF 좌표계: pdf-lib의 drawImage는 y를 하단 기준으로 사용
         // 저장된 좌표는 클릭한 위치 (PDF 문서 좌표, 하단이 0)
-        // UI에서 표시할 때: top = ((pageHeight - y) / pageHeight) * canvasHeight, transform: translate(-50%, -50%)
-        // 즉, 이미지의 중심이 position.y에 오게 표시됨
-        // pdf-lib에서 이미지의 중심이 position.y에 오도록 하려면:
-        // - 이미지의 하단이 position.y - height/2에 위치해야 함
-        // - 하지만 pdf-lib는 y를 하단 기준으로 사용하므로: y = position.y - height/2
-        const x = report.signature_position.x || 0
-        // 이미지의 중심이 position.y에 오도록: y = position.y - height/2
+        // UI에서 표시할 때: transform: translate(-50%, -50%)로 중심 기준
+        // pdf-lib에서도 이미지의 중심이 position에 오도록 X, Y 모두 보정
+        const x = (report.signature_position.x || 0) - (width / 2)
         const y = (report.signature_position.y || 0) - (height / 2)
         
         console.log('서명 위치 계산:', {
           저장된좌표: { x: report.signature_position.x, y: report.signature_position.y },
           이미지크기: { width, height },
-          계산된y: y,
-          페이지높이: pageHeight,
-          이미지중심예상위치: (report.signature_position.y || 0)
+          계산된좌표: { x, y },
+          페이지높이: pageHeight
         })
         
         page.drawImage(signatureImage, {
@@ -106,157 +104,121 @@ export async function GET(
           height: height,
         })
 
-        // 텍스트 위치에 이름 추가 (한글 지원을 위해 이미지로 변환)
-        const drawTextAsImage = async (text: string, xPos: number, yPos: number, fontSize: number) => {
+        // 텍스트 위치에 이름 추가 (pdf-lib + fontkit으로 한글 폰트 임베딩)
+        const drawTextWithFont = async (text: string, xPos: number, yPos: number, fontSize: number) => {
           try {
-            // Node.js 환경에서 canvas를 사용하여 텍스트를 이미지로 변환
-            const { createCanvas, registerFont } = await import('canvas')
-            const fs = await import('fs')
-            const os = await import('os')
+            // pdf-lib에 fontkit 등록
+            pdfDoc.registerFontkit(fontkit)
             
-            let fontLoaded = false
-            // 한글 폰트 로드 시도 (시스템 폰트 사용)
-            try {
-              const platform = os.platform()
-              let fontPaths: string[] = []
-              
-              if (platform === 'win32') {
-                // Windows 기본 한글 폰트 경로
-                fontPaths = [
-                  'C:/Windows/Fonts/malgun.ttf', // 맑은 고딕
-                  'C:/Windows/Fonts/gulim.ttc', // 굴림
-                  'C:/Windows/Fonts/batang.ttc', // 바탕
-                ]
-              } else if (platform === 'darwin') {
-                // macOS 한글 폰트 경로
-                fontPaths = [
-                  '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
-                  '/Library/Fonts/AppleGothic.ttf',
-                ]
-              } else {
-                // Linux 한글 폰트 경로
-                fontPaths = [
-                  '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
-                  '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-                ]
+            // 한글 폰트 로드 시도 (프로젝트에 포함된 폰트 파일 사용)
+            let krFont = null
+            const fontPaths = [
+              path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
+              path.join(process.cwd(), 'public', 'fonts', 'NanumGothic-Regular.ttf'),
+              // 시스템 폰트 경로 (fallback)
+              ...(process.platform === 'win32' ? [
+                'C:/Windows/Fonts/malgun.ttf',
+                'C:/Windows/Fonts/gulim.ttc',
+              ] : process.platform === 'darwin' ? [
+                '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+              ] : [
+                '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+              ])
+            ]
+            
+            for (const fontPath of fontPaths) {
+              try {
+                const fontBytes = await readFile(fontPath)
+                krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
+                console.log('한글 폰트 로드 성공:', fontPath)
+                break
+              } catch (e) {
+                // 다음 폰트 시도
+                continue
               }
+            }
+            
+            if (!krFont) {
+              console.warn('한글 폰트를 찾을 수 없습니다. 기본 폰트 사용 (한글이 깨질 수 있음)')
+              // 기본 폰트로 시도 (한글이 깨질 수 있음)
+              const helveticaFont = await pdfDoc.embedStandardFont(StandardFonts.Helvetica)
+              const textWidth = helveticaFont.widthOfTextAtSize(text, fontSize)
+              const x = xPos - (textWidth / 2)
+              const y = yPos - (fontSize / 2)
               
-              for (const fontPath of fontPaths) {
-                try {
-                  if (fs.existsSync(fontPath)) {
-                    registerFont(fontPath, { family: 'KoreanFont' })
-                    fontLoaded = true
-                    console.log('한글 폰트 로드 성공:', fontPath)
-                    break
-                  }
-                } catch (e) {
-                  console.warn('폰트 로드 실패:', fontPath, e)
-                }
-              }
-            } catch (e) {
-              console.warn('한글 폰트 로드 실패, 기본 폰트 사용:', e)
+              page.drawText(text, {
+                x,
+                y,
+                size: fontSize,
+                font: helveticaFont,
+              })
+              return
             }
             
-            // 텍스트 크기 측정을 위해 더 큰 캔버스 사용
-            const canvas = createCanvas(600, 150)
-            const ctx = canvas.getContext('2d')
+            // 텍스트 폭 계산 (센터 기준으로 X 보정)
+            const textWidth = krFont.widthOfTextAtSize(text, fontSize)
+            const x = xPos - (textWidth / 2)
+            const y = yPos - (fontSize / 2)
             
-            // 캔버스 배경을 투명하게 설정
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-            
-            ctx.fillStyle = 'black'
-            // 한글 폰트가 있으면 사용, 없으면 기본 폰트
-            if (fontLoaded) {
-              ctx.font = `bold ${fontSize}px KoreanFont`
-            } else {
-              // 기본 폰트 사용 (한글이 깨질 수 있음)
-              ctx.font = `bold ${fontSize}px Arial, sans-serif`
-            }
-            
-            // 텍스트 크기 측정
-            ctx.textBaseline = 'middle'
-            ctx.textAlign = 'center'
-            
-            // 텍스트를 캔버스 중앙에 그리기 (나중에 중심 기준으로 위치 조정)
-            const centerX = canvas.width / 2
-            const centerY = canvas.height / 2
-            
-            // 텍스트가 제대로 렌더링되는지 확인
-            try {
-              ctx.fillText(text, centerX, centerY)
-              console.log('텍스트 렌더링 성공:', text, '폰트:', fontLoaded ? 'KoreanFont' : 'Arial')
-            } catch (e) {
-              console.error('텍스트 렌더링 실패:', e)
-              // UTF-8 인코딩으로 다시 시도
-              const textBuffer = Buffer.from(text, 'utf-8')
-              ctx.fillText(textBuffer.toString('utf-8'), centerX, centerY)
-            }
-            
-            // 텍스트 영역만 잘라내기 (실제 텍스트 크기에 맞게)
-            const imageBytes = canvas.toBuffer('image/png')
-            const textImage = await pdfDoc.embedPng(imageBytes)
-            const textDims = textImage.scale(1.0) // 크기 조정 (필요시 조정)
-            
-            // pdf-lib의 drawImage는 y를 하단 기준으로 사용
-            // UI에서도 텍스트의 중심이 yPos에 오도록 표시됨 (transform: translate(-50%, -50%))
-            // pdf-lib에서 텍스트 이미지의 중심이 yPos에 오도록: y = yPos - textDims.height/2
-            const textY = yPos - (textDims.height / 2)
-            
-            console.log('텍스트 위치 계산:', {
+            console.log('텍스트 위치 계산 (pdf-lib + fontkit):', {
               저장된좌표: { x: xPos, y: yPos },
-              텍스트이미지크기: { width: textDims.width, height: textDims.height },
-              계산된y: textY,
-              텍스트중심예상위치: yPos
+              텍스트폭: textWidth,
+              계산된좌표: { x, y },
+              폰트크기: fontSize
             })
             
-            page.drawImage(textImage, {
-              x: xPos,
-              y: textY,
-              width: textDims.width,
-              height: textDims.height,
+            page.drawText(text, {
+              x,
+              y,
+              size: fontSize,
+              font: krFont,
             })
           } catch (error) {
-            console.error('텍스트 이미지 생성 실패:', error)
-            // 폴백: 텍스트를 그대로 시도 (한글이 아닌 경우)
+            console.error('텍스트 그리기 실패:', error)
+            // 폴백: 기본 폰트로 시도 (한글이 깨질 수 있음)
             try {
-              const textY = pageHeight - yPos - fontSize
+              const helveticaFont = await pdfDoc.embedStandardFont(StandardFonts.Helvetica)
+              const textWidth = helveticaFont.widthOfTextAtSize(text, fontSize)
+              const x = xPos - (textWidth / 2)
+              const y = yPos - (fontSize / 2)
+              
               page.drawText(text, {
-                x: xPos,
-                y: textY,
+                x,
+                y,
                 size: fontSize,
+                font: helveticaFont,
               })
             } catch (e) {
-              console.error('텍스트 그리기 실패:', e)
+              console.error('폴백 텍스트 그리기 실패:', e)
             }
           }
         }
 
         // 텍스트 위치에 이름 추가 (우선순위: text_position > signature_name)
         if (report.text_position && report.text_position.text) {
-          await drawTextAsImage(
+          await drawTextWithFont(
             report.text_position.text,
             report.text_position.x || 0,
             report.text_position.y || 0,
-            18 // 폰트 크기 증가
+            18 // 폰트 크기
           )
         } else if (report.signature_name) {
           // 서명자 이름이 있고 텍스트 위치가 없으면 이름 위치가 있으면 그 위치에, 없으면 서명 위치 옆에 표시
           if (report.name_position_x && report.name_position_y) {
             // 이름 위치가 설정되어 있으면 그 위치에 표시
-            await drawTextAsImage(
+            await drawTextWithFont(
               report.signature_name,
               report.name_position_x || 0,
               report.name_position_y || 0,
-              18 // 폰트 크기 증가
+              18 // 폰트 크기
             )
           } else {
             // 이름 위치가 없으면 서명 위치 옆에 표시
-            // pdf-lib의 drawImage는 y를 하단 기준으로 사용하므로, 서명의 중심 높이에 맞춤
-            await drawTextAsImage(
+            await drawTextWithFont(
               report.signature_name,
-              x + width + 10,
-              y - height / 2, // 서명의 중심 높이
-              18 // 폰트 크기 증가
+              (report.signature_position.x || 0) + width + 10,
+              (report.signature_position.y || 0),
+              18 // 폰트 크기
             )
           }
         }
