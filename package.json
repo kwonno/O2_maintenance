@@ -15,6 +15,7 @@
     "bcryptjs": "^3.0.3",
     "canvas": "^3.2.0",
     "date-fns": "^3.6.0",
+    "exceljs": "^4.4.0",
     "jsonwebtoken": "^9.0.3",
     "next": "14.2.5",
     "pdf-lib": "^1.17.1",

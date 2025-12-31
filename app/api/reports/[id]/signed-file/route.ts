@@ -6,6 +6,7 @@ import { getSignedUrl } from '@/lib/supabase/storage'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
@@ -276,9 +277,105 @@ export async function GET(
       // pdfDoc.save()는 Uint8Array를 반환
       signedFileBuffer = await pdfDoc.save()
     } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-      // 엑셀 파일의 경우 원본 파일을 그대로 반환 (엑셀에 이미지 삽입은 복잡하므로)
-      // 또는 서명 정보를 메타데이터로 추가할 수 있지만, 여기서는 원본 파일 반환
-      signedFileBuffer = fileBuffer
+      // 엑셀 파일에 서명과 이름 추가
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(fileBuffer)
+      
+      // 첫 번째 시트 가져오기
+      const worksheet = workbook.worksheets[0]
+      if (!worksheet) {
+        return NextResponse.json(
+          { error: '엑셀 파일에 시트가 없습니다.' },
+          { status: 400 }
+        )
+      }
+      
+      // 서명 이미지 추가
+      if (report.signature_data && report.signature_position) {
+        try {
+          // base64 이미지 데이터 추출
+          let signatureImageData = report.signature_data
+          if (signatureImageData.includes(',')) {
+            signatureImageData = signatureImageData.split(',')[1]
+          }
+          const signatureBuffer = Buffer.from(signatureImageData, 'base64')
+          
+          // 엑셀 좌표는 포인트(1/72 인치) 단위
+          // 저장된 좌표를 포인트로 변환 (대략 1:1 비율로 가정, 필요시 조정)
+          const x = report.signature_position.x || 0
+          const y = report.signature_position.y || 0
+          
+          // 이미지 추가 (엑셀은 포인트 단위 사용)
+          // exceljs는 Buffer 또는 Uint8Array를 받음
+          const imageId = workbook.addImage({
+            buffer: signatureBuffer as any,
+            extension: 'png',
+          })
+          
+          // 이미지 크기 조정 (서명 크기에 맞게)
+          const imageWidth = 100 // 포인트 단위 (약 3.5cm)
+          const imageHeight = 40 // 포인트 단위 (약 1.4cm)
+          
+          // 엑셀에서 이미지 위치는 셀 기준이므로, 좌표를 셀 위치로 변환
+          // 대략 72 포인트 = 1 인치, 셀 너비는 기본 64 픽셀 (약 48 포인트)
+          // 엑셀 좌표계는 왼쪽 상단이 0,0이고, 셀 기준으로 위치 지정
+          const col = Math.floor(x / 48)
+          const row = Math.floor(y / 20) // 행 높이는 기본 20 포인트
+          
+          worksheet.addImage(imageId, {
+            tl: { col, row }, // 왼쪽 상단 셀 위치
+            ext: { width: imageWidth, height: imageHeight }, // 이미지 크기 (포인트)
+          })
+          
+          console.log('엑셀 서명 이미지 추가:', { x, y, col, row, width: imageWidth, height: imageHeight })
+        } catch (imageError: any) {
+          console.error('엑셀 서명 이미지 추가 실패:', imageError.message)
+          // 이미지 추가 실패해도 계속 진행
+        }
+      }
+      
+      // 이름 텍스트 추가
+      if (report.signature_name) {
+        try {
+          let nameX = 0
+          let nameY = 0
+          
+          // 이름 위치 우선순위: text_position > name_position > signature_position 옆
+          if (report.text_position && report.text_position.x !== undefined && report.text_position.y !== undefined) {
+            nameX = report.text_position.x
+            nameY = report.text_position.y
+          } else if (report.name_position_x !== undefined && report.name_position_y !== undefined) {
+            nameX = report.name_position_x
+            nameY = report.name_position_y
+          } else if (report.signature_position) {
+            nameX = (report.signature_position.x || 0) + 120 // 서명 옆에 배치
+            nameY = report.signature_position.y || 0
+          }
+          
+          // 셀 위치 계산
+          const col = Math.floor(nameX / 48)
+          const row = Math.floor(nameY / 20)
+          
+          // 셀에 텍스트 추가
+          const cell = worksheet.getCell(row + 1, col + 1) // 엑셀은 1부터 시작
+          cell.value = report.signature_name
+          cell.font = {
+            name: '맑은 고딕',
+            size: 12,
+            bold: true,
+          }
+          cell.alignment = { vertical: 'middle', horizontal: 'left' }
+          
+          console.log('엑셀 이름 텍스트 추가:', { nameX, nameY, col: col + 1, row: row + 1, text: report.signature_name })
+        } catch (textError: any) {
+          console.error('엑셀 이름 텍스트 추가 실패:', textError.message)
+          // 텍스트 추가 실패해도 계속 진행
+        }
+      }
+      
+      // 수정된 엑셀 파일을 버퍼로 변환
+      const excelBuffer = await workbook.xlsx.writeBuffer()
+      signedFileBuffer = Buffer.from(excelBuffer)
     } else {
       return NextResponse.json(
         { error: '지원하지 않는 파일 형식입니다.' },
