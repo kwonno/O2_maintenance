@@ -9,6 +9,9 @@ import * as XLSX from 'xlsx'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
+// Vercel에서 edge로 잡히는 경우 방지
+export const runtime = 'nodejs'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -107,35 +110,19 @@ export async function GET(
         // 텍스트 위치에 이름 추가 (pdf-lib + fontkit으로 한글 폰트 임베딩)
         const drawTextWithFont = async (text: string, xPos: number, yPos: number, fontSize: number) => {
           try {
-            // pdf-lib에 fontkit 등록
+            // pdf-lib에 fontkit 등록 (1번만)
             pdfDoc.registerFontkit(fontkit)
             
-            // 한글 폰트 로드 시도 (Vercel 서버리스 환경 고려)
+            // 한글 폰트 로드 시도
             let krFont = null
             
-            // 방법 1: public URL에서 폰트 가져오기 (요청 헤더에서 호스트 추출)
-            const host = request.headers.get('host') || request.headers.get('x-forwarded-host')
-            const protocol = request.headers.get('x-forwarded-proto') || 'https'
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
-              || (host ? `${protocol}://${host}` : null)
-              || process.env.VERCEL_URL 
-                ? `https://${process.env.VERCEL_URL}`
-                : 'http://localhost:3000'
-            
-            const fontUrl = `${baseUrl}/fonts/NotoSansKR-Regular.ttf`
-            
+            // 방법 1: request origin 기반으로 폰트 URL 생성 (env 의존 없음)
             try {
-              console.log('폰트 URL에서 로드 시도:', fontUrl, {
-                host,
-                protocol,
-                NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-                VERCEL_URL: process.env.VERCEL_URL
-              })
-              const fontResponse = await fetch(fontUrl, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0',
-                },
-              })
+              const origin = request.nextUrl.origin
+              const fontUrl = new URL('/fonts/NotoSansKR-Regular.ttf', origin).toString()
+              
+              console.log('폰트 URL에서 로드 시도:', fontUrl)
+              const fontResponse = await fetch(fontUrl, { cache: 'no-store' })
               
               console.log('폰트 응답 상태:', fontResponse.status, fontResponse.statusText)
               
@@ -144,38 +131,25 @@ export async function GET(
                 const fontBytes = new Uint8Array(fontArrayBuffer)
                 console.log('폰트 바이트 로드 완료, 크기:', fontBytes.length, 'bytes')
                 
-                try {
-                  krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                  console.log('✅ 한글 폰트 임베딩 성공 (URL):', fontUrl)
-                  console.log('폰트 이름:', krFont.name)
-                } catch (embedError: any) {
-                  console.error('❌ 폰트 임베딩 실패:', embedError.message, embedError.stack)
-                  throw embedError
-                }
+                krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
+                console.log('✅ 한글 폰트 임베딩 성공 (URL):', fontUrl)
               } else {
-                const errorText = await fontResponse.text().catch(() => '')
-                console.warn('❌ 폰트 URL 응답 실패:', fontResponse.status, fontResponse.statusText, errorText)
+                console.warn('❌ 폰트 URL 응답 실패:', fontResponse.status, fontResponse.statusText)
+                throw new Error(`폰트 fetch 실패: ${fontResponse.status} ${fontUrl}`)
               }
-            } catch (e: any) {
-              console.warn('❌ 폰트 URL 로드 실패:', fontUrl, e.message, e.stack)
+            } catch (urlError: any) {
+              console.warn('❌ 폰트 URL 로드 실패:', urlError.message)
+              // URL 로드 실패 시 파일 시스템에서 로드 시도
             }
             
-            // 방법 2: 파일 시스템에서 로드 시도 (로컬 개발용)
+            // 방법 2: 파일 시스템에서 로드 시도 (Vercel에서 /var/task/public/fonts/ 경로 사용)
             if (!krFont) {
               const possiblePaths = [
                 path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
                 path.join(process.cwd(), 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
+                '/var/task/public/fonts/NotoSansKR-Regular.ttf', // Vercel Lambda 경로
                 path.join(process.cwd(), '.next', 'standalone', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
                 path.join(process.cwd(), '.next', 'server', 'lib', 'fonts', 'NotoSansKR-Regular.ttf'),
-                // 시스템 폰트 (fallback)
-                ...(process.platform === 'win32' ? [
-                  'C:/Windows/Fonts/malgun.ttf',
-                  'C:/Windows/Fonts/gulim.ttc',
-                ] : process.platform === 'darwin' ? [
-                  '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
-                ] : [
-                  '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
-                ])
               ]
               
               console.log('폰트 파일 시스템 로드 시도 - process.cwd():', process.cwd())
