@@ -57,3 +57,4 @@ fetch('/api/auth/login', {
 - `user_id` 쿠키가 있는지 확인
 
 
+

@@ -103,19 +103,23 @@ export async function POST(
       updateData.signature_name = signatureName
     }
 
-    // 이름이 있고 생성 시 이름 위치가 설정되어 있으면 그 위치에 자동 배치
-    if (signatureName && report.name_position_x !== undefined && report.name_position_y !== undefined) {
+    // 이름 위치 설정: 사용자가 찍은 textPosition이 최우선
+    // 1) 사용자가 찍어 보낸 textPosition이 있으면 그걸 최우선으로 사용
+    if (textPosition && textPosition.x !== undefined && textPosition.y !== undefined) {
+      updateData.text_position = {
+        ...textPosition,
+        text: signatureName || textPosition.text,
+      }
+      // 이름 위치도 별도로 저장 (다음 검수 시 기본값으로 사용)
+      updateData.name_position_x = textPosition.x
+      updateData.name_position_y = textPosition.y
+    } 
+    // 2) 없을 때만, 기존 report에 저장된 기본 위치로 fallback
+    else if (signatureName && report.name_position_x !== undefined && report.name_position_y !== undefined) {
       updateData.text_position = {
         x: report.name_position_x,
         y: report.name_position_y,
         text: signatureName,
-      }
-    } else if (textPosition) {
-      updateData.text_position = textPosition
-      // 이름 위치도 별도로 저장
-      if (textPosition.x !== undefined && textPosition.y !== undefined) {
-        updateData.name_position_x = textPosition.x
-        updateData.name_position_y = textPosition.y
       }
     }
 

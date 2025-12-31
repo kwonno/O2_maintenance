@@ -141,17 +141,29 @@ function PdfViewerWithSignature({
 
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const clickY = e.clientY - rect.top
+    
+    // 클릭 위치 (CSS 픽셀 기준)
+    const cssX = e.clientX - rect.left
+    const cssY = e.clientY - rect.top
 
     // PDF 좌표로 변환
-    // viewport는 이미 scale이 적용된 크기이고, canvas 크기와 동일함
-    const { viewport, actualViewport } = pageViewport
+    const { actualViewport } = pageViewport
     
-    // 클릭 좌표를 PDF 좌표로 변환 (viewport는 scale이 적용된 크기)
-    const pdfX = (clickX / viewport.width) * actualViewport.width
-    // Y 좌표는 PDF 좌표계(하단이 0)로 변환하여 저장
-    const pdfY = actualViewport.height - ((clickY / viewport.height) * actualViewport.height)
+    // CSS 크기 대비 PDF 페이지 포인트 스케일
+    const scaleX = actualViewport.width / rect.width
+    const scaleY = actualViewport.height / rect.height
+    
+    // PDF는 좌하단 원점이라 y 뒤집기
+    const pdfX = cssX * scaleX
+    const pdfY = (rect.height - cssY) * scaleY
+
+    console.log('클릭 좌표 변환:', {
+      CSS좌표: { cssX, cssY },
+      CSS크기: { width: rect.width, height: rect.height },
+      PDF크기: { width: actualViewport.width, height: actualViewport.height },
+      스케일: { scaleX, scaleY },
+      PDF좌표: { pdfX, pdfY }
+    })
 
     onPositionClick({
       x: Math.round(pdfX),

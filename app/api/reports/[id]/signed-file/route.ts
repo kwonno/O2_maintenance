@@ -173,25 +173,29 @@ export async function GET(
               ctx.font = `bold ${fontSize}px Arial, sans-serif`
             }
             
-            // 텍스트 그리기 (baseline 조정)
-            ctx.textBaseline = 'top'
-            ctx.textAlign = 'left'
+            // 텍스트 크기 측정
+            ctx.textBaseline = 'middle'
+            ctx.textAlign = 'center'
+            
+            // 텍스트를 캔버스 중앙에 그리기 (나중에 중심 기준으로 위치 조정)
+            const centerX = canvas.width / 2
+            const centerY = canvas.height / 2
             
             // 텍스트가 제대로 렌더링되는지 확인
             try {
-              ctx.fillText(text, 20, 20)
+              ctx.fillText(text, centerX, centerY)
               console.log('텍스트 렌더링 성공:', text, '폰트:', fontLoaded ? 'KoreanFont' : 'Arial')
             } catch (e) {
               console.error('텍스트 렌더링 실패:', e)
               // UTF-8 인코딩으로 다시 시도
               const textBuffer = Buffer.from(text, 'utf-8')
-              ctx.fillText(textBuffer.toString('utf-8'), 20, 20)
+              ctx.fillText(textBuffer.toString('utf-8'), centerX, centerY)
             }
             
-            // 텍스트 영역만 잘라내기
+            // 텍스트 영역만 잘라내기 (실제 텍스트 크기에 맞게)
             const imageBytes = canvas.toBuffer('image/png')
             const textImage = await pdfDoc.embedPng(imageBytes)
-            const textDims = textImage.scale(0.8) // 크기 조정
+            const textDims = textImage.scale(1.0) // 크기 조정 (필요시 조정)
             
             // pdf-lib의 drawImage는 y를 하단 기준으로 사용
             // UI에서도 텍스트의 중심이 yPos에 오도록 표시됨 (transform: translate(-50%, -50%))

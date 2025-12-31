@@ -127,27 +127,31 @@ export default function PdfPreviewCanvas({
     }
 
     const canvas = canvasRef.current
-    const canvasRect = canvas.getBoundingClientRect()
+    const rect = canvas.getBoundingClientRect()
     
-    // 클릭 위치를 캔버스 좌표로 변환 (문서의 실제 위치)
-    const clickX = e.clientX - canvasRect.left
-    const clickY = e.clientY - canvasRect.top
+    // 클릭 위치 (CSS 픽셀 기준)
+    const cssX = e.clientX - rect.left
+    const cssY = e.clientY - rect.top
 
     // PDF 문서의 실제 좌표로 변환 (포인트 단위)
-    const { viewport, actualViewport } = pageViewport
+    const { actualViewport } = pageViewport
     
-    // 화면 좌표를 PDF 문서 좌표로 변환
-    // viewport는 scale이 적용된 크기이므로, 비율로 계산
-    const pdfX = (clickX / viewport.width) * actualViewport.width
-    // Y 좌표는 PDF 좌표계(하단이 0)로 변환
-    const pdfY = actualViewport.height - ((clickY / viewport.height) * actualViewport.height)
+    // CSS 크기 대비 PDF 페이지 포인트 스케일
+    const scaleX = actualViewport.width / rect.width
+    const scaleY = actualViewport.height / rect.height
+    
+    // PDF는 좌하단 원점이라 y 뒤집기
+    const pdfX = cssX * scaleX
+    const pdfY = (rect.height - cssY) * scaleY
 
     const roundedX = Math.round(pdfX)
     const roundedY = Math.round(pdfY)
 
     console.log('클릭 좌표 (PDF 문서 위치):', { 
-      화면좌표: { clickX, clickY },
+      CSS좌표: { cssX, cssY },
+      CSS크기: { width: rect.width, height: rect.height },
       PDF문서크기: { width: actualViewport.width, height: actualViewport.height },
+      스케일: { scaleX, scaleY },
       PDF문서좌표: { pdfX, pdfY },
       최종좌표: { roundedX, roundedY },
       페이지: currentPage
