@@ -142,10 +142,19 @@ export async function GET(
               if (fontResponse.ok) {
                 const fontArrayBuffer = await fontResponse.arrayBuffer()
                 const fontBytes = new Uint8Array(fontArrayBuffer)
-                krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
-                console.log('✅ 한글 폰트 로드 성공 (URL):', fontUrl, '크기:', fontBytes.length, 'bytes')
+                console.log('폰트 바이트 로드 완료, 크기:', fontBytes.length, 'bytes')
+                
+                try {
+                  krFont = await pdfDoc.embedFont(fontBytes, { subset: true })
+                  console.log('✅ 한글 폰트 임베딩 성공 (URL):', fontUrl)
+                  console.log('폰트 이름:', krFont.name)
+                } catch (embedError: any) {
+                  console.error('❌ 폰트 임베딩 실패:', embedError.message, embedError.stack)
+                  throw embedError
+                }
               } else {
-                console.warn('❌ 폰트 URL 응답 실패:', fontResponse.status, fontResponse.statusText)
+                const errorText = await fontResponse.text().catch(() => '')
+                console.warn('❌ 폰트 URL 응답 실패:', fontResponse.status, fontResponse.statusText, errorText)
               }
             } catch (e: any) {
               console.warn('❌ 폰트 URL 로드 실패:', fontUrl, e.message, e.stack)
@@ -202,28 +211,55 @@ export async function GET(
               return
             }
             
+            // 폰트가 제대로 로드되었는지 확인
+            if (!krFont) {
+              throw new Error('한글 폰트가 로드되지 않았습니다')
+            }
+            
             // 텍스트 폭 계산 (센터 기준으로 X 보정)
-            const textWidth = krFont.widthOfTextAtSize(text, fontSize)
+            let textWidth: number
+            try {
+              textWidth = krFont.widthOfTextAtSize(text, fontSize)
+              console.log('텍스트 폭 계산 성공:', textWidth, '텍스트:', text)
+            } catch (widthError: any) {
+              console.error('텍스트 폭 계산 실패:', widthError.message)
+              throw widthError
+            }
+            
             const x = xPos - (textWidth / 2)
             const y = yPos - (fontSize / 2)
             
             console.log('텍스트 위치 계산 (pdf-lib + fontkit):', {
               저장된좌표: { x: xPos, y: yPos },
+              텍스트: text,
               텍스트폭: textWidth,
               계산된좌표: { x, y },
-              폰트크기: fontSize
+              폰트크기: fontSize,
+              폰트사용: true
             })
             
-            page.drawText(text, {
-              x,
-              y,
-              size: fontSize,
-              font: krFont,
+            try {
+              page.drawText(text, {
+                x,
+                y,
+                size: fontSize,
+                font: krFont,
+              })
+              console.log('✅ 텍스트 그리기 성공:', text)
+            } catch (drawError: any) {
+              console.error('❌ 텍스트 그리기 실패:', drawError.message, drawError.stack)
+              throw drawError
+            }
+          } catch (error: any) {
+            console.error('텍스트 그리기 실패:', {
+              error: error.message,
+              stack: error.stack,
+              text: text,
+              fontSize: fontSize
             })
-          } catch (error) {
-            console.error('텍스트 그리기 실패:', error)
             // 폴백: 기본 폰트로 시도 (한글이 깨질 수 있음)
             try {
+              console.warn('기본 폰트로 폴백 시도 (한글이 깨질 수 있음)')
               const helveticaFont = await pdfDoc.embedStandardFont(StandardFonts.Helvetica)
               const textWidth = helveticaFont.widthOfTextAtSize(text, fontSize)
               const x = xPos - (textWidth / 2)
@@ -235,8 +271,19 @@ export async function GET(
                 size: fontSize,
                 font: helveticaFont,
               })
-            } catch (e) {
-              console.error('폴백 텍스트 그리기 실패:', e)
+              console.warn('기본 폰트로 텍스트 그리기 완료 (한글이 깨질 수 있음)')
+            } catch (e: any) {
+              console.error('폴백 텍스트 그리기 실패:', e.message, e.stack)
+              // 최종 폴백: 폰트 없이 시도
+              try {
+                page.drawText(text, {
+                  x: xPos,
+                  y: yPos,
+                  size: fontSize,
+                })
+              } catch (finalError: any) {
+                console.error('최종 폴백 실패:', finalError.message)
+              }
             }
           }
         }
